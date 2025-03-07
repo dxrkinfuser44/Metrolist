@@ -167,6 +167,25 @@ fun PlayerSettings(
             checked = stopMusicOnTaskClear,
             onCheckedChange = onStopMusicOnTaskClearChange
         )
+
+        // Add functionality for creating and saving custom playlists
+        PreferenceGroupTitle(
+            title = stringResource(R.string.custom_playlists)
+        )
+
+        // Add option to create a new custom playlist
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.create_custom_playlist)) },
+            icon = { Icon(painterResource(R.drawable.playlist_add), null) },
+            onClick = { /* Handle creating a new custom playlist */ }
+        )
+
+        // Add option to manage existing custom playlists
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.manage_custom_playlists)) },
+            icon = { Icon(painterResource(R.drawable.playlist_play), null) },
+            onClick = { /* Handle managing existing custom playlists */ }
+        )
     }
 
     TopAppBar(

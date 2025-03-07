@@ -47,6 +47,14 @@ class App :
         super.onCreate()
         Timber.plant(Timber.DebugTree())
 
+        initializeYouTubeLocale()
+        initializeYouTubeProxy()
+        initializeYouTubeLogin()
+        initializeYouTubeVisitorData()
+        initializeYouTubeCookie()
+    }
+
+    private fun initializeYouTubeLocale() {
         val locale = Locale.getDefault()
         val languageTag = locale.toLanguageTag().replace("-Hant", "") // replace zh-Hant-* to zh-*
         YouTube.locale =
@@ -61,7 +69,9 @@ class App :
                     ?: languageTag.takeIf { it in LanguageCodeToName }
                     ?: "en",
             )
+    }
 
+    private fun initializeYouTubeProxy() {
         if (dataStore[ProxyEnabledKey] == true) {
             try {
                 YouTube.proxy =
@@ -74,11 +84,16 @@ class App :
                 reportException(e)
             }
         }
+    }
 
+    private fun initializeYouTubeLogin() {
         if (dataStore[UseLoginForBrowse] == true) {
             YouTube.useLoginForBrowse = true
         }
+    }
 
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun initializeYouTubeVisitorData() {
         GlobalScope.launch {
             dataStore.data
                 .map { it[VisitorDataKey] }
@@ -93,6 +108,10 @@ class App :
                         } ?: YouTube.DEFAULT_VISITOR_DATA
                 }
         }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun initializeYouTubeCookie() {
         GlobalScope.launch {
             dataStore.data
                 .map { it[InnerTubeCookieKey] }
@@ -125,4 +144,3 @@ class App :
                     .build(),
             ).build()
 }
-    
