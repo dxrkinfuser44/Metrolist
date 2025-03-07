@@ -597,7 +597,7 @@ class MusicService :
     }
 
     fun clearAutomix() {
-        filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
+        filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete()
         automixItems.value = emptyList()
     }
 

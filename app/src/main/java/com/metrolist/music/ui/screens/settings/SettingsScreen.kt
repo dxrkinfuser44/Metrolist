@@ -156,6 +156,23 @@ fun SettingsScreen(
             )
             ReleaseNotesCard()
         }
+
+        // Implement a settings menu for adjusting playback options, notification settings, and account information
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.playback_options)) },
+            icon = { Icon(painterResource(R.drawable.play), null) },
+            onClick = { navController.navigate("settings/playback_options") }
+        )
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.notification_settings)) },
+            icon = { Icon(painterResource(R.drawable.notifications), null) },
+            onClick = { navController.navigate("settings/notification_settings") }
+        )
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.account_information)) },
+            icon = { Icon(painterResource(R.drawable.account_circle), null) },
+            onClick = { navController.navigate("settings/account_information") }
+        )
     }
 
     TopAppBar(

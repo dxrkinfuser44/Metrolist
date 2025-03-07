@@ -427,6 +427,34 @@ fun AppearanceSettings(
                 }
             },
         )
+
+        // Add options for customizing fonts and background images
+        PreferenceGroupTitle(
+            title = stringResource(R.string.customization),
+        )
+
+        // Add font customization option
+        EnumListPreference(
+            title = { Text(stringResource(R.string.font_style)) },
+            icon = { Icon(painterResource(R.drawable.font_download), null) },
+            selectedValue = FontStyle.DEFAULT,
+            onValueSelected = { /* Handle font style change */ },
+            valueText = {
+                when (it) {
+                    FontStyle.DEFAULT -> stringResource(R.string.default_)
+                    FontStyle.SERIF -> stringResource(R.string.serif)
+                    FontStyle.SANS_SERIF -> stringResource(R.string.sans_serif)
+                    FontStyle.MONOSPACE -> stringResource(R.string.monospace)
+                }
+            },
+        )
+
+        // Add background image customization option
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.background_image)) },
+            icon = { Icon(painterResource(R.drawable.image), null) },
+            onClick = { /* Handle background image change */ },
+        )
     }
 
     TopAppBar(
@@ -466,4 +494,12 @@ enum class LyricsPosition {
 enum class PlayerTextAlignment {
     SIDED,
     CENTER,
+}
+
+// Add FontStyle enum for font customization
+enum class FontStyle {
+    DEFAULT,
+    SERIF,
+    SANS_SERIF,
+    MONOSPACE,
 }
