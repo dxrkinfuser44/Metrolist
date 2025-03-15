@@ -1101,6 +1101,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun isWearOS(context: Context): Boolean {
+        return context.packageManager.hasSystemFeature("android.hardware.type.watch")
+    }
+
+    private fun adjustUIForWearOS() {
+        // Adjust UI elements for Wear OS devices
+    }
+
+    private fun promptAudioOutput() {
+        // Code to prompt user to choose audio output
+    }
+
     companion object {
         const val ACTION_SEARCH = "com.metrolist.music.action.SEARCH"
         const val ACTION_EXPLORE = "com.metrolist.music.action.EXPLORE"
