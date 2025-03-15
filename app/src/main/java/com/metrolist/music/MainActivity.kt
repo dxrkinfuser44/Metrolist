@@ -139,7 +139,6 @@ import com.metrolist.music.ui.screens.search.LocalSearchScreen
 import com.metrolist.music.ui.screens.search.OnlineSearchScreen
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.screens.settings.LocaleManager
-import com.metrolist.music.ui.screens.settings.NavigationTab
 import com.metrolist.music.ui.theme.ColorSaver
 import com.metrolist.music.ui.theme.DefaultThemeColor
 import com.metrolist.music.ui.theme.MetrolistTheme
@@ -1099,6 +1098,18 @@ class MainActivity : ComponentActivity() {
             window.navigationBarColor =
                 (if (isDark) Color.Transparent else Color.Black.copy(alpha = 0.2f)).toArgb()
         }
+    }
+
+    private fun isWearOS(context: Context): Boolean {
+        return context.packageManager.hasSystemFeature("android.hardware.type.watch")
+    }
+
+    private fun adjustUIForWearOS() {
+        // Adjust UI elements for Wear OS devices
+    }
+
+    private fun promptAudioOutput() {
+        // Code to prompt user to choose audio output
     }
 
     companion object {
