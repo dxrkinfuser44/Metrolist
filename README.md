@@ -97,3 +97,21 @@ align="center">](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/ht
 This project and its contents are not affiliated with, funded, authorized, endorsed by, or in any way associated with YouTube, Google LLC, Metrolist Group LLC or any of its affiliates and subsidiaries.
 
 Any trademark, service mark, trade name, or other intellectual property rights used in this project are owned by the respective owners.
+
+## Building the App on Windows
+
+To build the app on Windows, follow these steps:
+
+1. Ensure you have Java Development Kit (JDK) 17 installed. ☕
+2. Open a terminal or command prompt. 💻
+3. Navigate to the root directory of the project. 📂
+4. Run the following command to build the project: `gradlew.bat assembleDebug`. 🛠️
+
+## Installing Gradle on Windows
+
+To install Gradle on Windows, follow these steps:
+
+1. **Download Gradle** 📥: Visit the official Gradle website and download the latest version of Gradle for Windows.
+2. **Extract the ZIP file** 📂: Extract the downloaded ZIP file to a directory of your choice, for example, `C:\Gradle`.
+3. **Set up environment variables** ⚙️: Add the `bin` directory of the extracted Gradle distribution to your `PATH` environment variable. For example, add `C:\Gradle\bin` to the `PATH`.
+4. **Verify installation** ✅: Open a command prompt and run `gradle -v` to verify that Gradle is installed correctly. You should see the Gradle version and other details.
