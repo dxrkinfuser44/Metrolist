@@ -41,15 +41,6 @@ fun IntegrationScreen(
             }
         )
 
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.lastfm_integration)) },
-            icon = { Icon(painterResource(R.drawable.music_note), null) },
-            onClick = {
-                navController.navigate("settings/integrations/lastfm")
-            }
-        )
-
-
     }
 
     TopAppBar(

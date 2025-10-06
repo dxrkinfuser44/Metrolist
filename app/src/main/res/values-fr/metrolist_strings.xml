@@ -218,11 +218,4 @@
     <string name="integrations">Intégrations</string>
     <string name="username">Nom d\'utilisateur</string>
     <string name="password">Mot de passe</string>
-    <string name="lastfm_integration">Intégration Last.fm</string>
-    <string name="enable_scrobbling">Activer le scrobbling</string>
-    <string name="lastfm_now_playing">Envoyer en cours de lecture</string>
-    <string name="scrobbling_configuration">Configuration du scrobbling</string>
-    <string name="scrobble_min_track_duration">Chansons de Scrobble plus longues que</string>
-    <string name="scrobble_delay_percent">Pourcentage de retard du Scrobble</string>
-    <string name="scrobble_delay_minutes">Minutes de retard du Scrobble</string>
 </resources>

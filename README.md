@@ -95,28 +95,6 @@ Thank you very much for helping to make Metrolist accessible to many people worl
 2. In the three dots menu at the top-right of the screen, click "Developer settings"
 3. Enable "Unknown sources"
 
-### Q: How to scrobble music to LastFM, LibreFM, ListenBrainz or GNU FM?
-
-Use other music scrobbler apps, I recommend [Pano Scrobbler](https://play.google.com/store/apps/details?id=com.arn.scrobble).
-
-<div align="center">
-<h1>Development Setup</h1>
-</div>
-
-### GitHub Secrets Configuration
-
-This project uses GitHub Secrets to securely store API keys for building releases. To set up the secrets:
-
-1. Go to your GitHub repository settings
-2. Navigate to **Settings** → **Secrets and variables** → **Actions**
-3. Add the following repository secrets:
-   - `LASTFM_API_KEY`: Your LastFM API key
-   - `LASTFM_SECRET`: Your LastFM secret key
-
-4. Get your LastFM API credentials from: https://www.last.fm/api/account/create
-
-**Note:** These secrets are automatically injected into the build process via GitHub Actions and are not visible in the source code.
-
 <div align="center">
 <h1>Support Me</h1>
 
