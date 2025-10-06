@@ -148,19 +148,21 @@ Once connected:
 
 ### Network Communication
 
-MetroSync uses three communication methods:
+MetroSync uses two communication methods:
 
-1. **WiFi Direct (Primary for P2P)**
-   - True peer-to-peer connections without requiring a router
-   - Works completely offline
-   - Automatic peer discovery
-   - Best for watch-to-phone connections
-
-2. **Network Service Discovery (NSD - Fallback)**
+1. **Network Service Discovery (NSD - Default)**
    - Uses multicast DNS (mDNS) for device discovery
+   - **Works over your regular WiFi network** (stays connected to home WiFi)
    - Service type: `_metrosync._tcp.`
    - Default port: 45678
-   - Works on local networks
+   - Best for most use cases
+
+2. **WiFi Direct (Optional - Offline Mode)**
+   - True peer-to-peer connections without requiring a router
+   - **⚠️ Note: Disconnects from your regular WiFi network**
+   - Only enable when you don't have a WiFi network available
+   - Automatic peer discovery
+   - Works completely offline
 
 3. **TCP Socket Communication**
    - Direct socket connections for message passing

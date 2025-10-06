@@ -349,9 +349,9 @@
     <string name="metrosync_settings">MetroSync Settings</string>
     <string name="auto_connect">Auto Connect</string>
     <string name="auto_connect_description">Automatically connect to nearby devices</string>
-    <string name="offline_mode">Offline Mode</string>
-    <string name="offline_mode_description">Enable peer-to-peer connection without internet</string>
+    <string name="offline_mode">WiFi Direct Mode</string>
+    <string name="offline_mode_description">Use WiFi Direct for direct P2P (disconnects from home WiFi). Leave OFF to use regular WiFi network.</string>
     <string name="about_metrosync">About MetroSync</string>
     <string name="metrosync_info_title">What is MetroSync?</string>
-    <string name="metrosync_info_description">MetroSync is a Spotify Connect-style protocol that allows you to control playback across multiple devices. It uses WiFi Direct for true peer-to-peer connections that work without a router. The Wear OS app can also function as a standalone YouTube Music player with an optimized UI for small displays.</string>
+    <string name="metrosync_info_description">MetroSync is a Spotify Connect-style protocol that allows you to control playback across multiple devices. By default, it works over your regular WiFi network. Enable WiFi Direct Mode for direct peer-to-peer when you don\'t have a router (note: this disconnects from home WiFi). The Wear OS app can also function as a standalone YouTube Music player with an optimized UI for small displays.</string>
 </resources>

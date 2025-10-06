@@ -2,13 +2,13 @@
 
 ## What is MetroSync?
 
-MetroSync is a **Spotify Connect-style protocol** that lets you control Metrolist playback across multiple devices using **WiFi Direct** for true peer-to-peer connections. Plus, the Wear OS app now functions as a **standalone YouTube Music player**!
+MetroSync is a **Spotify Connect-style protocol** that lets you control Metrolist playback across multiple devices. By default, it works over your **regular WiFi network** (you stay connected to home WiFi). Plus, the Wear OS app now functions as a **standalone YouTube Music player**!
 
 Features:
 - 🎵 **Standalone Playback**: Browse and play YouTube Music directly on your watch
 - ⌚ **Remote Control**: Control your phone's playback from your watch
-- 🔗 **WiFi Direct**: True peer-to-peer, works without a router
-- ✈️ **Works Offline**: No internet needed for device connections
+- 📡 **Regular WiFi**: Works over your home WiFi network (default)
+- 🔗 **WiFi Direct (Optional)**: Direct P2P when no router available (disconnects from home WiFi)
 
 ## 5-Minute Setup
 
@@ -91,7 +91,7 @@ Your Phone                      Your Watch
 |---------|-------------|-------------|
 | **Enable MetroSync** | Master on/off switch | Always enable first |
 | **Auto Connect** | Automatically connects to known devices | For convenience |
-| **Offline Mode** | Enables direct device connection | When no Wi-Fi available |
+| **WiFi Direct Mode** | Uses WiFi Direct (disconnects from home WiFi) | **Only when no router available**. Leave OFF for normal use. |
 
 ## Tips & Tricks
 

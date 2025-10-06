@@ -37,7 +37,7 @@ class MetroSyncService(private val context: Context) {
     
     private val deviceId = UUID.randomUUID().toString()
     private val connectedDevices = ConcurrentHashMap<String, Socket>()
-    private var useWifiDirect = true // Prefer WiFi Direct for true P2P
+    private var useWifiDirect = false // Default to regular WiFi (NSD), WiFi Direct only in offline mode
     
     private val _playbackState = MutableStateFlow<PlaybackState?>(null)
     val playbackState: StateFlow<PlaybackState?> = _playbackState.asStateFlow()
@@ -63,6 +63,22 @@ class MetroSyncService(private val context: Context) {
     }
 
     /**
+     * Enable or disable WiFi Direct mode
+     * When enabled, uses WiFi Direct for peer-to-peer (disconnects from WiFi)
+     * When disabled, uses NSD over regular WiFi network
+     */
+    fun setWifiDirectMode(enabled: Boolean) {
+        if (useWifiDirect != enabled) {
+            useWifiDirect = enabled
+            if (isRunning) {
+                // Restart discovery with new mode
+                stop()
+                start()
+            }
+        }
+    }
+
+    /**
      * Start the MetroSync service
      */
     fun start() {
@@ -73,10 +89,10 @@ class MetroSyncService(private val context: Context) {
         // Start server to accept connections
         startServer()
         
-        // Initialize WiFi Direct for peer-to-peer
-        wifiDirectManager.initialize()
-        
         if (useWifiDirect) {
+            // Initialize WiFi Direct for peer-to-peer (disconnects from regular WiFi)
+            Log.d(TAG, "Starting in WiFi Direct mode (offline P2P, disconnects from WiFi)")
+            wifiDirectManager.initialize()
             // Use WiFi Direct for true peer-to-peer discovery
             scope.launch {
                 wifiDirectManager.discoverPeers().collect { peers ->
@@ -101,7 +117,8 @@ class MetroSyncService(private val context: Context) {
                 }
             }
         } else {
-            // Fallback to NSD for local network discovery
+            // Use NSD for local network discovery (works over regular WiFi)
+            Log.d(TAG, "Starting in NSD mode (regular WiFi network)")
             scope.launch {
                 deviceDiscovery.registerDevice(
                     deviceId = deviceId,

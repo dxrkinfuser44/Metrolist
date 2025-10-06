@@ -1593,6 +1593,15 @@ class MusicService :
                     metroSyncService = null
                 }
             }
+        
+        // Monitor offline mode setting to control WiFi Direct
+        // Note: WiFi Direct disconnects from regular WiFi, so it's only used in offline mode
+        dataStore.data
+            .map { it[MetroSyncOfflineModeKey] ?: false }
+            .distinctUntilChanged()
+            .collect(scope) { offlineMode ->
+                metroSyncService?.setWifiDirectMode(offlineMode)
+            }
     }
 
     /**
