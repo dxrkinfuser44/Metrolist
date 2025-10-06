@@ -47,7 +47,7 @@ If you're in a region where YouTube Music is not supported, you won't be able to
 - Light - Dark - black - Dynamic theme
 - Sleep timer
 - Material 3
-- **MetroSync** - Spotify Connect-style device control that works offline AND online
+- **MetroSync** - Spotify Connect-style device control that works offline AND online ([Learn more](METROSYNC.md))
 - **Wear OS support** - Control playback from your smartwatch
 - etc.
 
