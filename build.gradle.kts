@@ -1,12 +1,9 @@
-@file:Suppress("DEPRECATION")
-
 plugins {
-    alias(libs.plugins.hilt) apply(false)
-    alias(libs.plugins.kotlin.ksp) apply(false)
-    alias(libs.plugins.compose.compiler) apply false
+    alias(libs.plugins.hilt) apply (false)
+    alias(libs.plugins.kotlin.ksp) apply (false)
 }
 
-    buildscript {
+buildscript {
     repositories {
         google()
         mavenCentral()
@@ -18,7 +15,7 @@ plugins {
     }
 }
 
-tasks.register<Delete>("Clean") {
+tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
 
