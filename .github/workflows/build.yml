@@ -119,3 +119,26 @@ jobs:
         with:
           name: app-universal-debug
           path: app/build/outputs/apk/universal/debug/*.apk
+          name: app
+          path: app/build/outputs/apk/debug/*.apk
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: "zulu"
+          cache: 'gradle'
+
+      - name: Build debug APK
+        run: ./gradlew.bat assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: app/build/outputs/apk/debug/*.apk
