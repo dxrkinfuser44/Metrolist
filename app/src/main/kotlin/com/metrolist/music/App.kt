@@ -6,7 +6,11 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -55,8 +59,25 @@ class App : Application(), SingletonImageLoader.Factory {
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {
+            migrateDataStore()
             initializeSettings()
             observeSettingsChanges()
+        }
+    }
+
+    private suspend fun migrateDataStore() {
+        // Clean up removed LastFM preference keys
+        dataStore.edit { preferences ->
+            // Remove LastFM session and username keys
+            preferences.remove(stringPreferencesKey("lastfmSession"))
+            preferences.remove(stringPreferencesKey("lastfmUsername"))
+            
+            // Remove LastFM scrobbling configuration keys
+            preferences.remove(booleanPreferencesKey("lastfmScrobblingEnable"))
+            preferences.remove(booleanPreferencesKey("lastfmUseNowPlaying"))
+            preferences.remove(floatPreferencesKey("scrobbleDelayPercent"))
+            preferences.remove(intPreferencesKey("scrobbleMinSongDuration"))
+            preferences.remove(intPreferencesKey("scrobbleDelaySeconds"))
         }
     }
 
