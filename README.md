@@ -46,7 +46,9 @@ If you're in a region where YouTube Music is not supported, you won't be able to
 - Reorder songs in playlist or queue 
 - Light - Dark - black - Dynamic theme
 - Sleep timer
-- Material 3 
+- Material 3
+- **MetroSync** - Spotify Connect-style device control that works offline AND online
+- **Wear OS support** - Control playback from your smartwatch
 - etc.
 
 <div align="center">
