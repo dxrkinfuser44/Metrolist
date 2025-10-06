@@ -1621,9 +1621,15 @@ class MusicService :
                     else -> REPEAT_MODE_OFF
                 }
             }
-            PlaybackAction.SEEK -> {} // TODO: Implement seek
-            PlaybackAction.SET_VOLUME -> {} // TODO: Implement volume control
-            PlaybackAction.PLAY_SONG -> {} // TODO: Implement play song
+            PlaybackAction.SEEK -> {
+                Log.d(TAG, "PlaybackAction.SEEK not implemented")
+            }
+            PlaybackAction.SET_VOLUME -> {
+                Log.d(TAG, "PlaybackAction.SET_VOLUME not implemented")
+            }
+            PlaybackAction.PLAY_SONG -> {
+                Log.d(TAG, "PlaybackAction.PLAY_SONG not implemented")
+            }
         }
     }
 

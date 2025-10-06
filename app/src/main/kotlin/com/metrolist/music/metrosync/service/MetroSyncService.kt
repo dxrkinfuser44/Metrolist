@@ -35,7 +35,15 @@ class MetroSyncService(private val context: Context) {
     private val deviceDiscovery = DeviceDiscovery(context)
     private val wifiDirectManager = WiFiDirectManager(context)
     
-    private val deviceId = UUID.randomUUID().toString()
+    // Persist device ID across restarts
+    private val deviceId: String by lazy {
+        val prefs = context.getSharedPreferences("metrosync_prefs", Context.MODE_PRIVATE)
+        prefs.getString("device_id", null) ?: run {
+            val newId = UUID.randomUUID().toString()
+            prefs.edit().putString("device_id", newId).apply()
+            newId
+        }
+    }
     private val connectedDevices = ConcurrentHashMap<String, Socket>()
     private var useWifiDirect = false // Default to regular WiFi (NSD), WiFi Direct only in offline mode
     
@@ -168,6 +176,7 @@ class MetroSyncService(private val context: Context) {
 
     /**
      * Connect to a remote device
+     * Note: Device is stored with a temporary key initially, then updated when announcement is received
      */
     fun connectToDevice(host: String, port: Int = DEFAULT_PORT) {
         scope.launch {
@@ -189,11 +198,12 @@ class MetroSyncService(private val context: Context) {
                 
                 sendMessage(socket, announcement)
                 
-                // Store connection
-                connectedDevices[host] = socket
+                // Store connection with temporary key (will be updated when remote announcement received)
+                val tempKey = "$host:$port"
+                connectedDevices[tempKey] = socket
                 
-                // Start listening for messages
-                listenForMessages(socket, host)
+                // Start listening for messages (deviceId will be updated when announcement received)
+                listenForMessages(socket, tempKey)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to connect to device: $host:$port", e)
             }
@@ -252,17 +262,30 @@ class MetroSyncService(private val context: Context) {
 
     /**
      * Listen for messages from a connected socket
+     * Uses length-prefix framing to handle message boundaries
      */
     private fun listenForMessages(socket: Socket, deviceId: String) {
         scope.launch {
             try {
-                val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-                val buffer = CharArray(BUFFER_SIZE)
+                val inputStream = socket.getInputStream()
+                val reader = BufferedReader(InputStreamReader(inputStream))
                 
                 while (isRunning && socket.isConnected) {
-                    val length = reader.read(buffer)
-                    if (length > 0) {
-                        val message = String(buffer, 0, length)
+                    // Read message length (first line)
+                    val lengthStr = reader.readLine() ?: break
+                    val messageLength = lengthStr.toIntOrNull() ?: continue
+                    
+                    // Read exact message content
+                    val buffer = CharArray(messageLength)
+                    var totalRead = 0
+                    while (totalRead < messageLength) {
+                        val read = reader.read(buffer, totalRead, messageLength - totalRead)
+                        if (read == -1) break
+                        totalRead += read
+                    }
+                    
+                    if (totalRead == messageLength) {
+                        val message = String(buffer)
                         handleMessage(message, deviceId)
                     }
                 }
@@ -310,7 +333,7 @@ class MetroSyncService(private val context: Context) {
     }
 
     /**
-     * Send a message to a socket
+     * Send a message to a socket with length-prefix framing
      */
     private fun sendMessage(socket: Socket, message: MetroSyncMessage) {
         scope.launch {
@@ -326,6 +349,8 @@ class MetroSyncService(private val context: Context) {
                         is ConnectionStatus -> message
                     }
                 )
+                // Send message length first, then the message content
+                writer.println(jsonMessage.length)
                 writer.println(jsonMessage)
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending message", e)

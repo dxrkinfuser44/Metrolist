@@ -36,6 +36,8 @@ data class WearSongInfo(
 data class WearDeviceInfo(
     val deviceId: String,
     val deviceName: String,
+    val host: String,
+    val port: Int
 )
 
 /**
@@ -88,9 +90,14 @@ class MetroSyncClient @Inject constructor(
                     override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
                         Log.d(TAG, "Service resolved: ${serviceInfo.serviceName}")
                         
+                        val host = serviceInfo.host.hostAddress ?: return
+                        val port = serviceInfo.port
+                        
                         val device = WearDeviceInfo(
-                            deviceId = "${serviceInfo.host.hostAddress}:${serviceInfo.port}",
-                            deviceName = serviceInfo.serviceName
+                            deviceId = "${serviceInfo.serviceName}_${host}_$port",
+                            deviceName = serviceInfo.serviceName,
+                            host = host,
+                            port = port
                         )
                         
                         val currentList = _discoveredDevices.value.toMutableList()
@@ -127,22 +134,28 @@ class MetroSyncClient @Inject constructor(
     }
 
     /**
-     * Connect to a device
+     * Connect to a device using deviceId from discovered devices
      */
     fun connectToDevice(deviceId: String) {
+        val device = _discoveredDevices.value.find { it.deviceId == deviceId }
+        if (device != null) {
+            connectToDevice(device.host, device.port, deviceId)
+        } else {
+            Log.e(TAG, "Device not found: $deviceId")
+        }
+    }
+    
+    /**
+     * Connect to a device with host and port
+     */
+    private fun connectToDevice(host: String, port: Int, deviceId: String) {
         scope.launch {
             try {
-                val parts = deviceId.split(":")
-                if (parts.size != 2) return@launch
-                
-                val host = parts[0]
-                val port = parts[1].toInt()
-                
                 socket = Socket(host, port)
                 connectedDeviceId = deviceId
                 _isConnected.value = true
                 
-                Log.d(TAG, "Connected to device: $deviceId")
+                Log.d(TAG, "Connected to device: $deviceId at $host:$port")
                 
                 // Start listening for messages
                 listenForMessages()
@@ -193,18 +206,29 @@ class MetroSyncClient @Inject constructor(
     }
 
     /**
-     * Listen for messages from connected device
+     * Listen for messages from connected device using length-prefix framing
      */
     private fun listenForMessages() {
         scope.launch {
             try {
                 val reader = BufferedReader(InputStreamReader(socket?.getInputStream()))
-                val buffer = CharArray(BUFFER_SIZE)
                 
                 while (_isConnected.value && socket?.isConnected == true) {
-                    val length = reader.read(buffer)
-                    if (length > 0) {
-                        val message = String(buffer, 0, length)
+                    // Read message length (first line)
+                    val lengthStr = reader.readLine() ?: break
+                    val messageLength = lengthStr.toIntOrNull() ?: continue
+                    
+                    // Read exact message content
+                    val buffer = CharArray(messageLength)
+                    var totalRead = 0
+                    while (totalRead < messageLength) {
+                        val read = reader.read(buffer, totalRead, messageLength - totalRead)
+                        if (read == -1) break
+                        totalRead += read
+                    }
+                    
+                    if (totalRead == messageLength) {
+                        val message = String(buffer)
                         handleMessage(message)
                     }
                 }
@@ -216,27 +240,29 @@ class MetroSyncClient @Inject constructor(
     }
 
     /**
-     * Handle incoming message
+     * Handle incoming message using proper JSON parsing
      */
     private fun handleMessage(message: String) {
         try {
-            // Simple message parsing for demo
             if (message.contains("\"PlaybackState\"")) {
-                // Parse playback state
-                val isPlaying = message.contains("\"isPlaying\":true")
-                val titleMatch = Regex("\"title\":\"([^\"]+)\"").find(message)
-                val artistMatch = Regex("\"artist\":\"([^\"]+)\"").find(message)
-                
-                _playbackState.value = WearPlaybackState(
-                    isPlaying = isPlaying,
-                    currentSong = if (titleMatch != null) {
-                        WearSongInfo(
-                            id = "",
-                            title = titleMatch.groupValues[1],
-                            artist = artistMatch?.groupValues?.getOrNull(1) ?: ""
-                        )
-                    } else null
-                )
+                // Use org.json for parsing (available on Android)
+                val json = org.json.JSONObject(message)
+                val playbackStateJson = json.optJSONObject("PlaybackState")
+                if (playbackStateJson != null) {
+                    val isPlaying = playbackStateJson.optBoolean("isPlaying", false)
+                    val currentSongJson = playbackStateJson.optJSONObject("currentSong")
+                    
+                    _playbackState.value = WearPlaybackState(
+                        isPlaying = isPlaying,
+                        currentSong = if (currentSongJson != null) {
+                            WearSongInfo(
+                                id = currentSongJson.optString("id", ""),
+                                title = currentSongJson.optString("title", ""),
+                                artist = currentSongJson.optString("artist", "")
+                            )
+                        } else null
+                    )
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing message", e)
@@ -244,13 +270,17 @@ class MetroSyncClient @Inject constructor(
     }
 
     /**
-     * Send a command to the connected device
+     * Send a command to the connected device with deviceId and length-prefix framing
      */
     private fun sendCommand(action: String) {
         scope.launch {
             try {
                 val writer = PrintWriter(socket?.getOutputStream(), true)
-                val command = """{"PlaybackCommand":{"action":"$action","timestamp":${System.currentTimeMillis()}}}"""
+                // Include deviceId in the command for proper routing
+                val deviceIdValue = connectedDeviceId ?: "unknown"
+                val command = """{"PlaybackCommand":{"deviceId":"$deviceIdValue","action":"$action","timestamp":${System.currentTimeMillis()}}}"""
+                // Send message length first, then the message content
+                writer.println(command.length)
                 writer.println(command)
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending command", e)

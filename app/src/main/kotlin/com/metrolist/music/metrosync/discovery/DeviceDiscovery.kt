@@ -47,9 +47,14 @@ class DeviceDiscovery(private val context: Context) {
                     override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
                         Log.d(TAG, "Service resolved: ${serviceInfo.serviceName}")
                         
+                        // Create a unique deviceId by combining service name, host, and port
+                        val hostAddress = serviceInfo.host?.hostAddress ?: "unknown_host"
+                        val port = serviceInfo.port
+                        val uniqueDeviceId = "${serviceInfo.serviceName}_${hostAddress}_$port"
+                        
                         // Create device announcement from resolved service
                         val announcement = DeviceAnnouncement(
-                            deviceId = serviceInfo.serviceName,
+                            deviceId = uniqueDeviceId,
                             deviceName = serviceInfo.serviceName,
                             deviceType = DeviceType.PHONE, // Could be parsed from service attributes
                             capabilities = listOf(
