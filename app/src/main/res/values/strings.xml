@@ -340,4 +340,18 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
+
+    <!-- MetroSync -->
+    <string name="metrosync">MetroSync</string>
+    <string name="metrosync_integration">MetroSync Integration</string>
+    <string name="enable_metrosync">Enable MetroSync</string>
+    <string name="enable_metrosync_description">Control playback across devices, works offline and online</string>
+    <string name="metrosync_settings">MetroSync Settings</string>
+    <string name="auto_connect">Auto Connect</string>
+    <string name="auto_connect_description">Automatically connect to nearby devices</string>
+    <string name="offline_mode">Offline Mode</string>
+    <string name="offline_mode_description">Enable peer-to-peer connection without internet</string>
+    <string name="about_metrosync">About MetroSync</string>
+    <string name="metrosync_info_title">What is MetroSync?</string>
+    <string name="metrosync_info_description">MetroSync is a Spotify Connect-style protocol that allows you to control playback across multiple devices. It works both online (via your local network) and offline (via direct device connection). Use it to control your phone from your smartwatch or other devices.</string>
 </resources>

@@ -49,6 +49,13 @@ fun IntegrationScreen(
             }
         )
 
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.metrosync_integration)) },
+            icon = { Icon(painterResource(R.drawable.devices), null) },
+            onClick = {
+                navController.navigate("settings/integrations/metrosync")
+            }
+        )
 
     }
 
