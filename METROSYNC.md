@@ -62,9 +62,12 @@ MetroSync is a Spotify Connect-style device control protocol that enables seamle
    - Command handling for remote control
 
 3. **Wear OS App** (`wear/`)
-   - Standalone Wear OS application
+   - **Standalone YouTube Music player** with full playback capabilities
+   - **Dual-mode operation**: Browse & play music OR remote control phone
    - MetroSync client for connecting to phone/tablet
-   - Compose-based UI optimized for wearables
+   - Compose-based UI optimized for small displays
+   - Independent music playback service (`WearMusicService`)
+   - Browse, search, and library screens for standalone use
 
 4. **Settings UI** (`app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/MetroSyncSettings.kt`)
    - Enable/disable MetroSync
@@ -145,14 +148,21 @@ Once connected:
 
 ### Network Communication
 
-MetroSync uses two communication methods:
+MetroSync uses three communication methods:
 
-1. **Network Service Discovery (NSD)**
+1. **WiFi Direct (Primary for P2P)**
+   - True peer-to-peer connections without requiring a router
+   - Works completely offline
+   - Automatic peer discovery
+   - Best for watch-to-phone connections
+
+2. **Network Service Discovery (NSD - Fallback)**
    - Uses multicast DNS (mDNS) for device discovery
    - Service type: `_metrosync._tcp.`
    - Default port: 45678
+   - Works on local networks
 
-2. **TCP Socket Communication**
+3. **TCP Socket Communication**
    - Direct socket connections for message passing
    - JSON-serialized messages
    - Persistent connections with automatic reconnection

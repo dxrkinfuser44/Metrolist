@@ -353,5 +353,5 @@
     <string name="offline_mode_description">Enable peer-to-peer connection without internet</string>
     <string name="about_metrosync">About MetroSync</string>
     <string name="metrosync_info_title">What is MetroSync?</string>
-    <string name="metrosync_info_description">MetroSync is a Spotify Connect-style protocol that allows you to control playback across multiple devices. It works both online (via your local network) and offline (via direct device connection). Use it to control your phone from your smartwatch or other devices.</string>
+    <string name="metrosync_info_description">MetroSync is a Spotify Connect-style protocol that allows you to control playback across multiple devices. It uses WiFi Direct for true peer-to-peer connections that work without a router. The Wear OS app can also function as a standalone YouTube Music player with an optimized UI for small displays.</string>
 </resources>

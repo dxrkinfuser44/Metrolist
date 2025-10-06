@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +37,7 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 import com.metrolist.wear.metrosync.MetroSyncClient
+import com.metrolist.wear.ui.screens.BrowseScreen
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -56,6 +60,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun WearApp(metroSyncClient: MetroSyncClient) {
+    var currentScreen by remember { mutableStateOf(WearScreen.BROWSE) }
     val playbackState by metroSyncClient.playbackState.collectAsState()
     val isConnected by metroSyncClient.isConnected.collectAsState()
     val discoveredDevices by metroSyncClient.discoveredDevices.collectAsState()
@@ -67,81 +72,113 @@ fun WearApp(metroSyncClient: MetroSyncClient) {
     ) {
         TimeText()
         
-        ScalingLazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
-            }
-            
-            item {
-                Text(
-                    text = "Metrolist",
-                    style = MaterialTheme.typography.title2,
-                    modifier = Modifier.padding(vertical = 8.dp)
+        when (currentScreen) {
+            WearScreen.BROWSE -> {
+                BrowseScreen(
+                    onQuickPicksClick = { /* TODO: Navigate to quick picks */ },
+                    onSearchClick = { /* TODO: Navigate to search */ },
+                    onLibraryClick = { /* TODO: Navigate to library */ },
+                    onDownloadsClick = { /* TODO: Navigate to downloads */ }
                 )
             }
+            WearScreen.REMOTE -> {
+                RemoteControlScreen(
+                    isConnected = isConnected,
+                    playbackState = playbackState,
+                    discoveredDevices = discoveredDevices,
+                    metroSyncClient = metroSyncClient
+                )
+            }
+        }
+    }
+}
+
+enum class WearScreen {
+    BROWSE,    // Standalone browsing and playback
+    REMOTE     // Remote control for phone
+}
+
+@Composable
+fun RemoteControlScreen(
+    isConnected: Boolean,
+    playbackState: com.metrolist.wear.metrosync.WearPlaybackState?,
+    discoveredDevices: List<com.metrolist.wear.metrosync.WearDeviceInfo>,
+    metroSyncClient: MetroSyncClient
+) {
+    ScalingLazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        item {
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+        
+        item {
+            Text(
+                text = "Remote Control",
+                style = MaterialTheme.typography.title2,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+        
+        if (isConnected) {
+            item {
+                NowPlayingCard(
+                    title = playbackState?.currentSong?.title ?: "No song playing",
+                    artist = playbackState?.currentSong?.artist ?: "",
+                    isPlaying = playbackState?.isPlaying ?: false,
+                    onPlayPause = {
+                        if (playbackState?.isPlaying == true) {
+                            metroSyncClient.pause()
+                        } else {
+                            metroSyncClient.play()
+                        }
+                    },
+                    onNext = { metroSyncClient.next() },
+                    onPrevious = { metroSyncClient.previous() }
+                )
+            }
+        } else {
+            item {
+                Card(
+                    onClick = { metroSyncClient.startDiscovery() },
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Not Connected",
+                            style = MaterialTheme.typography.title3
+                        )
+                        Text(
+                            text = "Tap to discover devices",
+                            style = MaterialTheme.typography.caption1
+                        )
+                    }
+                }
+            }
             
-            if (isConnected) {
+            if (discoveredDevices.isNotEmpty()) {
                 item {
-                    NowPlayingCard(
-                        title = playbackState?.currentSong?.title ?: "No song playing",
-                        artist = playbackState?.currentSong?.artist ?: "",
-                        isPlaying = playbackState?.isPlaying ?: false,
-                        onPlayPause = {
-                            if (playbackState?.isPlaying == true) {
-                                metroSyncClient.pause()
-                            } else {
-                                metroSyncClient.play()
-                            }
-                        },
-                        onNext = { metroSyncClient.next() },
-                        onPrevious = { metroSyncClient.previous() }
+                    Text(
+                        text = "Available Devices",
+                        style = MaterialTheme.typography.caption1,
+                        modifier = Modifier.padding(8.dp)
                     )
                 }
-            } else {
-                item {
-                    Card(
-                        onClick = { metroSyncClient.startDiscovery() },
-                        modifier = Modifier.padding(8.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Not Connected",
-                                style = MaterialTheme.typography.title3
-                            )
-                            Text(
-                                text = "Tap to discover devices",
-                                style = MaterialTheme.typography.caption1
-                            )
-                        }
-                    }
-                }
                 
-                if (discoveredDevices.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Available Devices",
-                            style = MaterialTheme.typography.caption1,
-                            modifier = Modifier.padding(8.dp)
-                        )
-                    }
-                    
-                    items(discoveredDevices.size) { index ->
-                        val device = discoveredDevices[index]
-                        Chip(
-                            label = { Text(device.deviceName) },
-                            onClick = { metroSyncClient.connectToDevice(device.deviceId) },
-                            colors = ChipDefaults.primaryChipColors()
-                        )
-                    }
+                items(discoveredDevices.size) { index ->
+                    val device = discoveredDevices[index]
+                    Chip(
+                        label = { Text(device.deviceName) },
+                        onClick = { metroSyncClient.connectToDevice(device.deviceId) },
+                        colors = ChipDefaults.primaryChipColors()
+                    )
                 }
             }
         }

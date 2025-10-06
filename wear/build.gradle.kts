@@ -79,6 +79,7 @@ dependencies {
     // Media
     implementation(libs.media3)
     implementation(libs.media3.session)
+    implementation(libs.media3.okhttp)
     
     // Hilt
     implementation(libs.hilt)
@@ -86,14 +87,23 @@ dependencies {
     
     // Coil for images
     implementation(libs.coil)
+    implementation(libs.coil.network.okhttp)
     
-    // Ktor for networking (MetroSync)
+    // YouTube Music integration (for standalone playback)
+    implementation(project(":innertube"))
+    
+    // Ktor for networking (MetroSync + YouTube Music)
     implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
     
     // Coroutines
     implementation(libs.guava)
     implementation(libs.coroutines.guava)
+    
+    // DataStore for preferences
+    implementation(libs.datastore)
     
     coreLibraryDesugaring(libs.desugaring)
 }

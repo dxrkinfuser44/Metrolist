@@ -1,8 +1,10 @@
 package com.metrolist.music.metrosync.service
 
 import android.content.Context
+import android.net.wifi.p2p.WifiP2pDevice
 import android.util.Log
 import com.metrolist.music.metrosync.discovery.DeviceDiscovery
+import com.metrolist.music.metrosync.discovery.WiFiDirectManager
 import com.metrolist.music.metrosync.models.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,9 +33,11 @@ import java.util.concurrent.ConcurrentHashMap
 class MetroSyncService(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val deviceDiscovery = DeviceDiscovery(context)
+    private val wifiDirectManager = WiFiDirectManager(context)
     
     private val deviceId = UUID.randomUUID().toString()
     private val connectedDevices = ConcurrentHashMap<String, Socket>()
+    private var useWifiDirect = true // Prefer WiFi Direct for true P2P
     
     private val _playbackState = MutableStateFlow<PlaybackState?>(null)
     val playbackState: StateFlow<PlaybackState?> = _playbackState.asStateFlow()
@@ -69,25 +73,53 @@ class MetroSyncService(private val context: Context) {
         // Start server to accept connections
         startServer()
         
-        // Register this device for discovery
-        scope.launch {
-            deviceDiscovery.registerDevice(
-                deviceId = deviceId,
-                deviceName = android.os.Build.MODEL,
-                port = DEFAULT_PORT
-            ).collect { registered ->
-                Log.d(TAG, "Device registration: $registered")
-            }
-        }
+        // Initialize WiFi Direct for peer-to-peer
+        wifiDirectManager.initialize()
         
-        // Start discovering other devices
-        scope.launch {
-            deviceDiscovery.discoverDevices().collect { announcement ->
-                Log.d(TAG, "Discovered device: ${announcement.deviceName}")
-                val currentList = _discoveredDevices.value.toMutableList()
-                if (currentList.none { it.deviceId == announcement.deviceId }) {
-                    currentList.add(announcement)
-                    _discoveredDevices.value = currentList
+        if (useWifiDirect) {
+            // Use WiFi Direct for true peer-to-peer discovery
+            scope.launch {
+                wifiDirectManager.discoverPeers().collect { peers ->
+                    Log.d(TAG, "WiFi Direct: Discovered ${peers.size} peers")
+                    peers.forEach { peer ->
+                        val announcement = DeviceAnnouncement(
+                            deviceId = peer.deviceAddress,
+                            deviceName = peer.deviceName,
+                            deviceType = DeviceType.PHONE,
+                            capabilities = listOf(
+                                DeviceCapability.PLAYBACK_CONTROL,
+                                DeviceCapability.QUEUE_MANAGEMENT,
+                                DeviceCapability.OFFLINE_MODE
+                            )
+                        )
+                        val currentList = _discoveredDevices.value.toMutableList()
+                        if (currentList.none { it.deviceId == announcement.deviceId }) {
+                            currentList.add(announcement)
+                            _discoveredDevices.value = currentList
+                        }
+                    }
+                }
+            }
+        } else {
+            // Fallback to NSD for local network discovery
+            scope.launch {
+                deviceDiscovery.registerDevice(
+                    deviceId = deviceId,
+                    deviceName = android.os.Build.MODEL,
+                    port = DEFAULT_PORT
+                ).collect { registered ->
+                    Log.d(TAG, "NSD: Device registration: $registered")
+                }
+            }
+            
+            scope.launch {
+                deviceDiscovery.discoverDevices().collect { announcement ->
+                    Log.d(TAG, "NSD: Discovered device: ${announcement.deviceName}")
+                    val currentList = _discoveredDevices.value.toMutableList()
+                    if (currentList.none { it.deviceId == announcement.deviceId }) {
+                        currentList.add(announcement)
+                        _discoveredDevices.value = currentList
+                    }
                 }
             }
         }
@@ -112,6 +144,9 @@ class MetroSyncService(private val context: Context) {
         // Close server socket
         serverSocket?.close()
         serverSocket = null
+        
+        // Clean up WiFi Direct
+        wifiDirectManager.cleanup()
     }
 
     /**

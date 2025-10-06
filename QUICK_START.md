@@ -2,12 +2,13 @@
 
 ## What is MetroSync?
 
-MetroSync is a **Spotify Connect-style protocol** that lets you control Metrolist playback across multiple devices. Think of it like this:
+MetroSync is a **Spotify Connect-style protocol** that lets you control Metrolist playback across multiple devices using **WiFi Direct** for true peer-to-peer connections. Plus, the Wear OS app now functions as a **standalone YouTube Music player**!
 
-- 🎵 Playing music on your phone
-- ⌚ Control it from your smartwatch
-- 🏠 Works at home (online)
-- ✈️ Works anywhere (offline)
+Features:
+- 🎵 **Standalone Playback**: Browse and play YouTube Music directly on your watch
+- ⌚ **Remote Control**: Control your phone's playback from your watch
+- 🔗 **WiFi Direct**: True peer-to-peer, works without a router
+- ✈️ **Works Offline**: No internet needed for device connections
 
 ## 5-Minute Setup
 
@@ -18,13 +19,20 @@ MetroSync is a **Spotify Connect-style protocol** that lets you control Metrolis
 3. Toggle **Enable MetroSync** to ON
 4. Done! Your phone is now discoverable
 
-### Step 2: Connect from Watch (Optional)
+### Step 2: Use on Watch
 
+**Option A: Standalone Player** (No phone needed!)
 1. Install **Metrolist Wear** on your smartwatch
-2. Open the app
+2. Open the app - defaults to Browse mode
+3. Navigate to Quick Picks, Search, or Library
+4. Play music directly on your watch! 🎉
+
+**Option B: Remote Control** (Control your phone)
+1. Open the app on your watch
+2. Swipe or navigate to Remote Control mode
 3. Tap **Discover Devices**
 4. Select your phone from the list
-5. Start controlling! 🎉
+5. Control phone playback from your wrist! ⌚
 
 ## What Can You Do?
 
