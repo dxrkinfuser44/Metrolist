@@ -41,6 +41,22 @@ fun IntegrationScreen(
             }
         )
 
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.lastfm_integration)) },
+            icon = { Icon(painterResource(R.drawable.music_note), null) },
+            onClick = {
+                navController.navigate("settings/integrations/lastfm")
+            }
+        )
+
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.metrosync_integration)) },
+            icon = { Icon(painterResource(R.drawable.devices), null) },
+            onClick = {
+                navController.navigate("settings/integrations/metrosync")
+            }
+        )
+
     }
 
     TopAppBar(

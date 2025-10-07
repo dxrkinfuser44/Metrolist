@@ -78,6 +78,7 @@ import com.metrolist.music.constants.MediaSessionConstants.CommandToggleLike
 import com.metrolist.music.constants.MediaSessionConstants.CommandToggleRepeatMode
 import com.metrolist.music.constants.MediaSessionConstants.CommandToggleShuffle
 import com.metrolist.music.constants.MediaSessionConstants.CommandToggleStartRadio
+import com.metrolist.music.constants.MetroSyncEnabledKey
 import com.metrolist.music.constants.PauseListenHistoryKey
 import com.metrolist.music.constants.PersistentQueueKey
 import com.metrolist.music.constants.PlayerVolumeKey
@@ -104,6 +105,10 @@ import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.extensions.toPersistQueue
 import com.metrolist.music.extensions.toQueue
 import com.metrolist.music.lyrics.LyricsHelper
+import com.metrolist.music.metrosync.models.PlaybackAction
+import com.metrolist.music.metrosync.models.PlaybackState
+import com.metrolist.music.metrosync.models.SongInfo
+import com.metrolist.music.metrosync.service.MetroSyncService
 import com.metrolist.music.models.PersistPlayerState
 import com.metrolist.music.models.PersistQueue
 import com.metrolist.music.models.toMediaMetadata
@@ -223,6 +228,9 @@ class MusicService :
     private var discordRpc: DiscordRPC? = null
     private var lastPlaybackSpeed = 1.0f
     private var discordUpdateJob: kotlinx.coroutines.Job? = null
+
+    private var scrobbleManager: ScrobbleManager? = null
+    private var metroSyncService: MetroSyncService? = null
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
@@ -496,6 +504,9 @@ class MusicService :
                 }
             }
         }
+
+        // Initialize MetroSync service if enabled
+        initializeMetroSync()
     }
 
     private fun initializeLoudnessEnhancer() {
@@ -1426,6 +1437,11 @@ class MusicService :
             discordRpc?.closeRPC()
         }
         discordRpc = null
+        
+        // Stop MetroSync service
+        metroSyncService?.stop()
+        metroSyncService = null
+        
         connectivityObserver.unregister()
         abandonAudioFocus()
 
@@ -1458,6 +1474,96 @@ class MusicService :
     inner class MusicBinder : Binder() {
         val service: MusicService
             get() = this@MusicService
+    }
+
+    /**
+     * Initialize MetroSync service for device-to-device communication
+     */
+    private fun initializeMetroSync() {
+        dataStore.data
+            .map { it[MetroSyncEnabledKey] ?: false }
+            .distinctUntilChanged()
+            .collect(scope) { enabled ->
+                if (enabled && metroSyncService == null) {
+                    metroSyncService = MetroSyncService(this).apply {
+                        start()
+                        
+                        // Listen for playback commands from other devices
+                        scope.launch {
+                            playbackCommands.collect { command ->
+                                handleMetroSyncCommand(command.action)
+                            }
+                        }
+                        
+                        // Broadcast playback state changes
+                        scope.launch {
+                            player.currentMediaItem?.let { mediaItem ->
+                                val state = PlaybackState(
+                                    deviceId = getDeviceId(),
+                                    isPlaying = player.isPlaying,
+                                    position = player.currentPosition,
+                                    duration = player.duration,
+                                    currentSong = currentMediaMetadata.value?.let { metadata ->
+                                        SongInfo(
+                                            id = metadata.id,
+                                            title = metadata.title,
+                                            artist = metadata.artists.joinToString(", ") { it.name },
+                                            album = metadata.album?.title,
+                                            thumbnailUrl = metadata.thumbnailUrl,
+                                            duration = player.duration
+                                        )
+                                    },
+                                    repeatMode = player.repeatMode,
+                                    shuffleEnabled = player.shuffleModeEnabled,
+                                    volume = playerVolume.value
+                                )
+                                broadcastPlaybackState(state)
+                            }
+                        }
+                    }
+                } else if (!enabled && metroSyncService != null) {
+                    metroSyncService?.stop()
+                    metroSyncService = null
+                }
+            }
+        
+        // Monitor offline mode setting to control WiFi Direct
+        // Note: WiFi Direct disconnects from regular WiFi, so it's only used in offline mode
+        dataStore.data
+            .map { it[MetroSyncOfflineModeKey] ?: false }
+            .distinctUntilChanged()
+            .collect(scope) { offlineMode ->
+                metroSyncService?.setWifiDirectMode(offlineMode)
+            }
+    }
+
+    /**
+     * Handle playback commands from MetroSync
+     */
+    private fun handleMetroSyncCommand(action: PlaybackAction) {
+        when (action) {
+            PlaybackAction.PLAY -> player.play()
+            PlaybackAction.PAUSE -> player.pause()
+            PlaybackAction.NEXT -> player.seekToNext()
+            PlaybackAction.PREVIOUS -> player.seekToPrevious()
+            PlaybackAction.TOGGLE_SHUFFLE -> player.shuffleModeEnabled = !player.shuffleModeEnabled
+            PlaybackAction.TOGGLE_REPEAT -> {
+                player.repeatMode = when (player.repeatMode) {
+                    REPEAT_MODE_OFF -> REPEAT_MODE_ALL
+                    REPEAT_MODE_ALL -> REPEAT_MODE_ONE
+                    else -> REPEAT_MODE_OFF
+                }
+            }
+            PlaybackAction.SEEK -> {
+                Log.d(TAG, "PlaybackAction.SEEK not implemented")
+            }
+            PlaybackAction.SET_VOLUME -> {
+                Log.d(TAG, "PlaybackAction.SET_VOLUME not implemented")
+            }
+            PlaybackAction.PLAY_SONG -> {
+                Log.d(TAG, "PlaybackAction.PLAY_SONG not implemented")
+            }
+        }
     }
 
     companion object {

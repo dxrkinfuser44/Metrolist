@@ -64,6 +64,8 @@ import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.screens.settings.DiscordLoginScreen
 import com.metrolist.music.ui.screens.settings.integrations.DiscordSettings
 import com.metrolist.music.ui.screens.settings.integrations.IntegrationScreen
+import com.metrolist.music.ui.screens.settings.integrations.LastFMSettings
+import com.metrolist.music.ui.screens.settings.integrations.MetroSyncSettings
 import com.metrolist.music.ui.screens.settings.PlayerSettings
 import com.metrolist.music.ui.screens.settings.PrivacySettings
 import com.metrolist.music.ui.screens.settings.RomanizationSettings
@@ -314,6 +316,12 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/integrations/discord") {
         DiscordSettings(navController, scrollBehavior)
+    }
+    composable("settings/integrations/lastfm") {
+        LastFMSettings(navController, scrollBehavior)
+    }
+    composable("settings/integrations/metrosync") {
+        MetroSyncSettings(navController, scrollBehavior)
     }
     composable("settings/discord/login") {
         DiscordLoginScreen(navController)

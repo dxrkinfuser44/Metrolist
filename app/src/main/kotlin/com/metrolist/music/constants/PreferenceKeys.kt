@@ -43,6 +43,12 @@ val YtmSyncKey = booleanPreferencesKey("ytmSync")
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 
+// MetroSync settings
+val MetroSyncEnabledKey = booleanPreferencesKey("metroSyncEnabled")
+val MetroSyncDeviceNameKey = stringPreferencesKey("metroSyncDeviceName")
+val MetroSyncAutoConnectKey = booleanPreferencesKey("metroSyncAutoConnect")
+val MetroSyncOfflineModeKey = booleanPreferencesKey("metroSyncOfflineMode")
+
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 
 enum class AudioQuality {
