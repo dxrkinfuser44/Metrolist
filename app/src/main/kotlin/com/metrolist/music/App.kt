@@ -6,7 +6,11 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -18,7 +22,6 @@ import coil3.request.crossfade
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeLocale
 import com.metrolist.kugou.KuGou
-import com.metrolist.lastfm.LastFM
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.constants.*
 import com.metrolist.music.di.ApplicationScope
@@ -56,8 +59,25 @@ class App : Application(), SingletonImageLoader.Factory {
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {
+            migrateDataStore()
             initializeSettings()
             observeSettingsChanges()
+        }
+    }
+
+    private suspend fun migrateDataStore() {
+        // Clean up removed LastFM preference keys
+        dataStore.edit { preferences ->
+            // Remove LastFM session and username keys
+            preferences.remove(stringPreferencesKey("lastfmSession"))
+            preferences.remove(stringPreferencesKey("lastfmUsername"))
+            
+            // Remove LastFM scrobbling configuration keys
+            preferences.remove(booleanPreferencesKey("lastfmScrobblingEnable"))
+            preferences.remove(booleanPreferencesKey("lastfmUseNowPlaying"))
+            preferences.remove(floatPreferencesKey("scrobbleDelayPercent"))
+            preferences.remove(intPreferencesKey("scrobbleMinSongDuration"))
+            preferences.remove(intPreferencesKey("scrobbleDelaySeconds"))
         }
     }
 
@@ -79,12 +99,6 @@ class App : Application(), SingletonImageLoader.Factory {
         if (languageTag == "zh-TW") {
             KuGou.useTraditionalChinese = true
         }
-
-        // Initialize LastFM with API keys from BuildConfig (GitHub Secrets)
-        LastFM.initialize(
-            apiKey = BuildConfig.LASTFM_API_KEY.takeIf { it.isNotEmpty() } ?: "",
-            secret = BuildConfig.LASTFM_SECRET.takeIf { it.isNotEmpty() } ?: ""
-        )
 
         if (settings[ProxyEnabledKey] == true) {
             val username = settings[ProxyUsernameKey].orEmpty()
@@ -166,19 +180,6 @@ class App : Application(), SingletonImageLoader.Factory {
                     } catch (e: Exception) {
                         Timber.e(e, "Could not parse cookie. Clearing existing cookie.")
                         forgetAccount(this@App)
-                    }
-                }
-        }
-
-        applicationScope.launch(Dispatchers.IO) {
-            dataStore.data
-                .map { it[LastFMSessionKey] }
-                .distinctUntilChanged()
-                .collect { session ->
-                    try {
-                        LastFM.sessionKey = session
-                    } catch (e: Exception) {
-                        Timber.e("Error while loading last.fm session key. %s", e.message)
                     }
                 }
         }
