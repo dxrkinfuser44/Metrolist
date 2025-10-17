@@ -105,5 +105,9 @@ dependencies {
     // DataStore for preferences
     implementation(libs.datastore)
     
+    // Credential Manager for sign-in
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    
     coreLibraryDesugaring(libs.desugaring)
 }
