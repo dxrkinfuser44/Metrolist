@@ -63,9 +63,11 @@ class AuthRepository @Inject constructor(
     suspend fun signIn(): SignInResult {
         return try {
             // Configure Google Sign-In for Remote Auth
+            // Note: Set a real Web Client ID from Google Cloud Console for production
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(false)
-                .setServerClientId("YOUR_WEB_CLIENT_ID") // Replace with actual client ID
+                .setServerClientId("YOUR_WEB_CLIENT_ID.apps.googleusercontent.com") // Replace with actual client ID
+                .setAutoSelectEnabled(true)
                 .build()
             
             val request = GetCredentialRequest.Builder()
@@ -79,9 +81,9 @@ class AuthRepository @Inject constructor(
             
             handleSignInResult(result)
         } catch (e: GetCredentialException) {
-            SignInResult.Error(e.message ?: "Unknown error")
+            SignInResult.Error("Sign-in cancelled or failed: ${e.message}")
         } catch (e: Exception) {
-            SignInResult.Error(e.message ?: "Unknown error")
+            SignInResult.Error("Sign-in error: ${e.message}")
         }
     }
     
