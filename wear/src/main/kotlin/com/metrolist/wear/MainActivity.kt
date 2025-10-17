@@ -88,7 +88,7 @@ fun WearApp(metroSyncClient: MetroSyncClient, authRepository: AuthRepository) {
                 SignInScreen(
                     authRepository = authRepository,
                     onSignInSuccess = {
-                        // After sign-in, navigate to browse screen
+                        // After sign-in, stay on browse screen
                         currentScreen = WearScreen.BROWSE
                     }
                 )
@@ -100,7 +100,8 @@ fun WearApp(metroSyncClient: MetroSyncClient, authRepository: AuthRepository) {
                             onQuickPicksClick = { /* TODO: Navigate to quick picks */ },
                             onSearchClick = { /* TODO: Navigate to search */ },
                             onLibraryClick = { /* TODO: Navigate to library */ },
-                            onDownloadsClick = { /* TODO: Navigate to downloads */ }
+                            onDownloadsClick = { /* TODO: Navigate to downloads */ },
+                            onAccountClick = { currentScreen = WearScreen.ACCOUNT }
                         )
                     }
                     WearScreen.REMOTE -> {

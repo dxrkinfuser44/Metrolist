@@ -27,7 +27,8 @@ fun BrowseScreen(
     onQuickPicksClick: () -> Unit,
     onSearchClick: () -> Unit,
     onLibraryClick: () -> Unit,
-    onDownloadsClick: () -> Unit
+    onDownloadsClick: () -> Unit,
+    onAccountClick: () -> Unit = {}
 ) {
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -79,6 +80,15 @@ fun BrowseScreen(
                 title = "Downloads",
                 description = "Offline playback",
                 onClick = onDownloadsClick
+            )
+        }
+        
+        // Account
+        item {
+            BrowseCard(
+                title = "Account",
+                description = "Manage your account",
+                onClick = onAccountClick
             )
         }
     }
