@@ -128,6 +128,48 @@ fun SignInScreen(
                 }
             }
             
+            // Demo mode button for development/testing
+            item {
+                Card(
+                    onClick = {
+                        isLoading = true
+                        errorMessage = null
+                        scope.launch {
+                            when (val result = authRepository.signInDemo()) {
+                                is SignInResult.Success -> {
+                                    isLoading = false
+                                    onSignInSuccess()
+                                }
+                                is SignInResult.Error -> {
+                                    isLoading = false
+                                    errorMessage = result.message
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Demo Mode",
+                            style = MaterialTheme.typography.title3
+                        )
+                        Text(
+                            text = "For testing",
+                            style = MaterialTheme.typography.caption1,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+            
             if (errorMessage != null) {
                 item {
                     Card(
