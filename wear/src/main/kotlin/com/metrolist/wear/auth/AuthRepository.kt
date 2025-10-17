@@ -88,6 +88,29 @@ class AuthRepository @Inject constructor(
     }
     
     /**
+     * Sign in with demo credentials for testing
+     * This bypasses the actual credential flow
+     */
+    suspend fun signInDemo(): SignInResult {
+        return try {
+            // Save demo user info
+            context.authDataStore.edit { preferences ->
+                preferences[USER_ID_KEY] = "demo_user"
+                preferences[USER_EMAIL_KEY] = "demo@metrolist.app"
+                preferences[USER_NAME_KEY] = "Demo User"
+            }
+            
+            SignInResult.Success(
+                userId = "demo_user",
+                email = "demo@metrolist.app",
+                displayName = "Demo User"
+            )
+        } catch (e: Exception) {
+            SignInResult.Error("Demo sign-in failed: ${e.message}")
+        }
+    }
+    
+    /**
      * Handle the sign-in result from Credential Manager
      */
     private suspend fun handleSignInResult(result: GetCredentialResponse): SignInResult {
