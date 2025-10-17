@@ -108,6 +108,7 @@ import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.utils.completed
@@ -124,6 +125,7 @@ import com.metrolist.music.constants.PlaylistEditLockKey
 import com.metrolist.music.constants.PlaylistSongSortDescendingKey
 import com.metrolist.music.constants.PlaylistSongSortType
 import com.metrolist.music.constants.PlaylistSongSortTypeKey
+import com.metrolist.music.constants.SwipeToRemoveSongKey
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.db.entities.Playlist
 import com.metrolist.music.db.entities.PlaylistSong
@@ -559,6 +561,7 @@ fun LocalPlaylistScreen(
                             // Song removed directly without undo option
                         }
 
+                        val swipeRemoveEnabled by rememberPreference(SwipeToRemoveSongKey, defaultValue = false)
                         val dismissBoxState =
                             rememberSwipeToDismissBoxState(
                                 positionalThreshold = { totalDistance -> totalDistance }
@@ -566,7 +569,7 @@ fun LocalPlaylistScreen(
                         var processedDismiss by remember { mutableStateOf(false) }
                         LaunchedEffect(dismissBoxState.currentValue) {
                             val dv = dismissBoxState.currentValue
-                            if (!processedDismiss && (
+                            if (swipeRemoveEnabled && !processedDismiss && (
                                     dv == SwipeToDismissBoxValue.StartToEnd ||
                                     dv == SwipeToDismissBoxValue.EndToStart
                                 )
@@ -647,7 +650,7 @@ fun LocalPlaylistScreen(
                             )
                         }
 
-                        if (locked || selection) {
+                        if (locked || selection || !swipeRemoveEnabled) {
                             Box(modifier = Modifier.animateItem()) {
                                 content()
                             }
@@ -685,6 +688,7 @@ fun LocalPlaylistScreen(
                             // Song removed directly without undo option
                         }
 
+                        val swipeRemoveEnabled by rememberPreference(SwipeToRemoveSongKey, defaultValue = false)
                         val dismissBoxState =
                             rememberSwipeToDismissBoxState(
                                 positionalThreshold = { totalDistance -> totalDistance }
@@ -692,7 +696,7 @@ fun LocalPlaylistScreen(
                         var processedDismiss2 by remember { mutableStateOf(false) }
                         LaunchedEffect(dismissBoxState.currentValue) {
                             val dv = dismissBoxState.currentValue
-                            if (!processedDismiss2 && (
+                            if (swipeRemoveEnabled && !processedDismiss2 && (
                                     dv == SwipeToDismissBoxValue.StartToEnd ||
                                     dv == SwipeToDismissBoxValue.EndToStart
                                 )
@@ -776,7 +780,7 @@ fun LocalPlaylistScreen(
                             )
                         }
 
-                        if (locked || !editable) {
+                        if (locked || !editable || !swipeRemoveEnabled) {
                             Box(modifier = Modifier.animateItem()) {
                                 content()
                             }
@@ -1133,8 +1137,12 @@ fun LocalPlaylistHeader(
                             .clip(RoundedCornerShape(ThumbnailCornerRadius)),
                     ) {
                         AsyncImage(
-                            model = overrideThumbnail.value ?: playlist.thumbnails[0],
+                            model = ImageRequest.Builder(context)
+                                .data(overrideThumbnail.value ?: playlist.thumbnails[0])
+                                .build(),
                             contentDescription = null,
+                            placeholder = painterResource(R.drawable.queue_music),
+                            error = painterResource(R.drawable.queue_music),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(ThumbnailCornerRadius))
@@ -1204,9 +1212,13 @@ fun LocalPlaylistHeader(
                             Alignment.BottomEnd,
                         ).fastForEachIndexed { index, alignment ->
                             AsyncImage(
-                                model = overrideThumbnail.value ?: playlist.thumbnails.getOrNull(index),
+                                model = ImageRequest.Builder(context)
+                                    .data(overrideThumbnail.value ?: playlist.thumbnails.getOrNull(index))
+                                    .build(),
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
+                                placeholder = painterResource(R.drawable.queue_music),
+                                error = painterResource(R.drawable.queue_music),
                                 modifier =
                                     Modifier
                                         .align(alignment)
