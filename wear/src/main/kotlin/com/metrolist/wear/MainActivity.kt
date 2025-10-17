@@ -19,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,9 +37,14 @@ import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
+import com.metrolist.wear.auth.AuthRepository
+import com.metrolist.wear.auth.UserState
 import com.metrolist.wear.metrosync.MetroSyncClient
+import com.metrolist.wear.ui.screens.AccountScreen
 import com.metrolist.wear.ui.screens.BrowseScreen
+import com.metrolist.wear.ui.screens.SignInScreen
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -46,24 +52,29 @@ class MainActivity : ComponentActivity() {
     
     @Inject
     lateinit var metroSyncClient: MetroSyncClient
+    
+    @Inject
+    lateinit var authRepository: AuthRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         setContent {
             MaterialTheme {
-                WearApp(metroSyncClient)
+                WearApp(metroSyncClient, authRepository)
             }
         }
     }
 }
 
 @Composable
-fun WearApp(metroSyncClient: MetroSyncClient) {
+fun WearApp(metroSyncClient: MetroSyncClient, authRepository: AuthRepository) {
     var currentScreen by remember { mutableStateOf(WearScreen.BROWSE) }
     val playbackState by metroSyncClient.playbackState.collectAsState()
     val isConnected by metroSyncClient.isConnected.collectAsState()
     val discoveredDevices by metroSyncClient.discoveredDevices.collectAsState()
+    val userState by authRepository.userState.collectAsState(initial = UserState.SignedOut)
+    val scope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -72,22 +83,49 @@ fun WearApp(metroSyncClient: MetroSyncClient) {
     ) {
         TimeText()
         
-        when (currentScreen) {
-            WearScreen.BROWSE -> {
-                BrowseScreen(
-                    onQuickPicksClick = { /* TODO: Navigate to quick picks */ },
-                    onSearchClick = { /* TODO: Navigate to search */ },
-                    onLibraryClick = { /* TODO: Navigate to library */ },
-                    onDownloadsClick = { /* TODO: Navigate to downloads */ }
+        when (userState) {
+            is UserState.SignedOut -> {
+                SignInScreen(
+                    authRepository = authRepository,
+                    onSignInSuccess = {
+                        // After sign-in, navigate to browse screen
+                        currentScreen = WearScreen.BROWSE
+                    }
                 )
             }
-            WearScreen.REMOTE -> {
-                RemoteControlScreen(
-                    isConnected = isConnected,
-                    playbackState = playbackState,
-                    discoveredDevices = discoveredDevices,
-                    metroSyncClient = metroSyncClient
-                )
+            is UserState.SignedIn -> {
+                when (currentScreen) {
+                    WearScreen.BROWSE -> {
+                        BrowseScreen(
+                            onQuickPicksClick = { /* TODO: Navigate to quick picks */ },
+                            onSearchClick = { /* TODO: Navigate to search */ },
+                            onLibraryClick = { /* TODO: Navigate to library */ },
+                            onDownloadsClick = { /* TODO: Navigate to downloads */ }
+                        )
+                    }
+                    WearScreen.REMOTE -> {
+                        RemoteControlScreen(
+                            isConnected = isConnected,
+                            playbackState = playbackState,
+                            discoveredDevices = discoveredDevices,
+                            metroSyncClient = metroSyncClient
+                        )
+                    }
+                    WearScreen.ACCOUNT -> {
+                        val signedInState = userState as UserState.SignedIn
+                        AccountScreen(
+                            userId = signedInState.userId,
+                            email = signedInState.email,
+                            displayName = signedInState.displayName,
+                            onSignOut = {
+                                scope.launch {
+                                    authRepository.signOut()
+                                    currentScreen = WearScreen.BROWSE
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -95,7 +133,8 @@ fun WearApp(metroSyncClient: MetroSyncClient) {
 
 enum class WearScreen {
     BROWSE,    // Standalone browsing and playback
-    REMOTE     // Remote control for phone
+    REMOTE,    // Remote control for phone
+    ACCOUNT    // Account management
 }
 
 @Composable
