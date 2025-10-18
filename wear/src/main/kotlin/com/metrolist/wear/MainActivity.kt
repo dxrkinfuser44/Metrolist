@@ -44,6 +44,8 @@ import com.metrolist.wear.metrosync.MetroSyncClient
 import com.metrolist.wear.ui.screens.AccountScreen
 import com.metrolist.wear.ui.screens.BrowseScreen
 import com.metrolist.wear.ui.screens.SignInScreen
+import com.metrolist.wear.ui.screens.SyncedFavoritesScreen
+import com.metrolist.wear.ui.screens.SyncedPlaylistsScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -65,14 +67,14 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             MaterialTheme {
-                WearApp(metroSyncClient, authRepository)
+                WearApp(metroSyncClient, authRepository, wearableDataService)
             }
         }
     }
 }
 
 @Composable
-fun WearApp(metroSyncClient: MetroSyncClient, authRepository: AuthRepository) {
+fun WearApp(metroSyncClient: MetroSyncClient, authRepository: AuthRepository, wearableDataService: WearableDataService) {
     var currentScreen by remember { mutableStateOf(WearScreen.BROWSE) }
     val playbackState by metroSyncClient.playbackState.collectAsState()
     val isConnected by metroSyncClient.isConnected.collectAsState()
@@ -105,7 +107,9 @@ fun WearApp(metroSyncClient: MetroSyncClient, authRepository: AuthRepository) {
                             onSearchClick = { /* TODO: Navigate to search */ },
                             onLibraryClick = { /* TODO: Navigate to library */ },
                             onDownloadsClick = { /* TODO: Navigate to downloads */ },
-                            onAccountClick = { currentScreen = WearScreen.ACCOUNT }
+                            onAccountClick = { currentScreen = WearScreen.ACCOUNT },
+                            onSyncedPlaylistsClick = { currentScreen = WearScreen.SYNCED_PLAYLISTS },
+                            onSyncedFavoritesClick = { currentScreen = WearScreen.SYNCED_FAVORITES }
                         )
                     }
                     WearScreen.REMOTE -> {
@@ -130,6 +134,20 @@ fun WearApp(metroSyncClient: MetroSyncClient, authRepository: AuthRepository) {
                             }
                         )
                     }
+                    WearScreen.SYNCED_PLAYLISTS -> {
+                        SyncedPlaylistsScreen(
+                            wearableDataService = wearableDataService,
+                            onPlaylistClick = { /* TODO: Play playlist */ },
+                            onBackClick = { currentScreen = WearScreen.BROWSE }
+                        )
+                    }
+                    WearScreen.SYNCED_FAVORITES -> {
+                        SyncedFavoritesScreen(
+                            wearableDataService = wearableDataService,
+                            onSongClick = { /* TODO: Play song */ },
+                            onBackClick = { currentScreen = WearScreen.BROWSE }
+                        )
+                    }
                 }
             }
         }
@@ -137,9 +155,11 @@ fun WearApp(metroSyncClient: MetroSyncClient, authRepository: AuthRepository) {
 }
 
 enum class WearScreen {
-    BROWSE,    // Standalone browsing and playback
-    REMOTE,    // Remote control for phone
-    ACCOUNT    // Account management
+    BROWSE,              // Standalone browsing and playback
+    REMOTE,              // Remote control for phone
+    ACCOUNT,             // Account management
+    SYNCED_PLAYLISTS,    // Playlists synced from phone
+    SYNCED_FAVORITES     // Favorites synced from phone
 }
 
 @Composable
