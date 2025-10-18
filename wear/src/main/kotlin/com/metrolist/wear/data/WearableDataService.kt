@@ -58,7 +58,28 @@ class WearableDataService @Inject constructor(
     
     init {
         setupDataListeners()
+        setupCapabilityListener() // Add dynamic connectivity monitoring
         checkPhoneConnectivity()
+    }
+    
+    /**
+     * Setup dynamic capability listener for real-time connectivity updates
+     */
+    private fun setupCapabilityListener() {
+        capabilityClient.addListener(
+            { capabilityInfo ->
+                val isConnected = capabilityInfo.nodes.isNotEmpty()
+                _isPhoneConnected.value = isConnected
+                
+                if (isConnected) {
+                    Log.d(TAG, "Phone connected: ${capabilityInfo.nodes.size} node(s)")
+                    requestInitialSync()
+                } else {
+                    Log.d(TAG, "Phone disconnected")
+                }
+            },
+            CAPABILITY_PHONE_APP
+        )
     }
     
     /**
