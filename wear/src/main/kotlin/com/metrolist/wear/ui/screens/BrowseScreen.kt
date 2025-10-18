@@ -20,7 +20,7 @@ import androidx.compose.material.Text
 
 /**
  * Browse screen for standalone Wear OS music playback
- * Optimized for small displays
+ * Optimized for small displays with phone sync integration
  */
 @Composable
 fun BrowseScreen(
@@ -28,7 +28,9 @@ fun BrowseScreen(
     onSearchClick: () -> Unit,
     onLibraryClick: () -> Unit,
     onDownloadsClick: () -> Unit,
-    onAccountClick: () -> Unit = {}
+    onAccountClick: () -> Unit = {},
+    onSyncedPlaylistsClick: () -> Unit = {},
+    onSyncedFavoritesClick: () -> Unit = {}
 ) {
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -80,6 +82,24 @@ fun BrowseScreen(
                 title = "Downloads",
                 description = "Offline playback",
                 onClick = onDownloadsClick
+            )
+        }
+        
+        // Synced Playlists (from phone)
+        item {
+            BrowseCard(
+                title = "Synced Playlists",
+                description = "From your phone",
+                onClick = onSyncedPlaylistsClick
+            )
+        }
+        
+        // Synced Favorites (from phone)
+        item {
+            BrowseCard(
+                title = "Favorites",
+                description = "Synced from phone",
+                onClick = onSyncedFavoritesClick
             )
         }
         
