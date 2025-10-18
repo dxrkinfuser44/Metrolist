@@ -223,6 +223,9 @@ dependencies {
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.serialization.json)
+    
+    // Wearable Data Layer for phone-watch sync
+    implementation(libs.wearable)
 
     coreLibraryDesugaring(libs.desugaring)
 

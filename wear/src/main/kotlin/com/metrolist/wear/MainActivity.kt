@@ -39,6 +39,7 @@ import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 import com.metrolist.wear.auth.AuthRepository
 import com.metrolist.wear.auth.UserState
+import com.metrolist.wear.data.WearableDataService
 import com.metrolist.wear.metrosync.MetroSyncClient
 import com.metrolist.wear.ui.screens.AccountScreen
 import com.metrolist.wear.ui.screens.BrowseScreen
@@ -55,6 +56,9 @@ class MainActivity : ComponentActivity() {
     
     @Inject
     lateinit var authRepository: AuthRepository
+    
+    @Inject
+    lateinit var wearableDataService: WearableDataService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -68,6 +68,10 @@ dependencies {
     implementation("androidx.wear.compose:compose-material:1.5.0")
     implementation("androidx.wear.compose:compose-foundation:1.5.0")
     implementation("androidx.wear.compose:compose-navigation:1.5.0")
+    implementation("androidx.wear.tiles:tiles:1.4.0")
+    implementation("androidx.wear.tiles:tiles-material:1.4.0")
+    implementation("androidx.wear.protolayout:protolayout:1.2.0")
+    implementation("androidx.wear.protolayout:protolayout-material:1.2.0")
     
     // Compose
     implementation(libs.compose.runtime)
@@ -108,6 +112,9 @@ dependencies {
     // Credential Manager for sign-in
     implementation(libs.credentials)
     implementation(libs.credentials.play.services)
+    
+    // Wearable Data Layer for phone-watch sync
+    implementation(libs.wearable)
     
     coreLibraryDesugaring(libs.desugaring)
 }
