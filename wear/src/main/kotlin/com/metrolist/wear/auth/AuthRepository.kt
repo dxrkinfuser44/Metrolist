@@ -14,6 +14,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -24,6 +26,7 @@ private val Context.authDataStore: DataStore<Preferences> by preferencesDataStor
 
 /**
  * Repository for managing authentication state in Wear OS
+ * Uses encrypted storage for sensitive credentials
  */
 @Singleton
 class AuthRepository @Inject constructor(
@@ -31,11 +34,29 @@ class AuthRepository @Inject constructor(
 ) {
     private val credentialManager = CredentialManager.create(context)
     
+    // Use EncryptedSharedPreferences for storing sensitive auth tokens
+    private val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+    
+    private val encryptedPrefs = try {
+        EncryptedSharedPreferences.create(
+            context,
+            "auth_encrypted",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) {
+        // Fallback to regular preferences if encryption fails
+        context.getSharedPreferences("auth_fallback", Context.MODE_PRIVATE)
+    }
+    
     companion object {
         private val USER_ID_KEY = stringPreferencesKey("user_id")
         private val USER_EMAIL_KEY = stringPreferencesKey("user_email")
         private val USER_NAME_KEY = stringPreferencesKey("user_name")
-        private val ID_TOKEN_KEY = stringPreferencesKey("id_token")
+        private const val ID_TOKEN_KEY = "id_token" // Stored in encrypted prefs
     }
     
     /**
@@ -150,12 +171,15 @@ class AuthRepository @Inject constructor(
                     // In a real app, you would verify this with your backend server
                     val userId = extractUserIdFromPasskey(authenticationResponseJson)
                     
-                    // Save user info
+                    // Save user info - use encrypted storage for sensitive token
                     context.authDataStore.edit { preferences ->
                         preferences[USER_ID_KEY] = userId
                         preferences[USER_EMAIL_KEY] = "$userId@metrolist.app"
                         preferences[USER_NAME_KEY] = "Passkey User"
                     }
+                    
+                    // Store authentication token in encrypted storage
+                    encryptedPrefs.edit().putString(ID_TOKEN_KEY, authenticationResponseJson).apply()
                     
                     SignInResult.Success(
                         userId = userId,
@@ -226,6 +250,8 @@ class AuthRepository @Inject constructor(
         context.authDataStore.edit { preferences ->
             preferences.clear()
         }
+        // Also clear encrypted storage
+        encryptedPrefs.edit().clear().apply()
     }
 }
 

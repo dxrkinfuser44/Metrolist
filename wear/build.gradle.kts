@@ -109,6 +109,9 @@ dependencies {
     // DataStore for preferences
     implementation(libs.datastore)
     
+    // Security for encrypted storage
+    implementation(libs.security.crypto)
+    
     // Credential Manager for sign-in
     implementation(libs.credentials)
     implementation(libs.credentials.play.services)

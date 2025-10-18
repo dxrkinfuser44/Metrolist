@@ -73,6 +73,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Main Wear OS composable app
+ * 
+ * Note: This uses manual screen state management instead of full Compose Navigation
+ * for simplicity given the small number of screens. For larger apps, consider
+ * migrating to SwipeDismissableNavHost with NavController for more complex routing.
+ */
 @Composable
 fun WearApp(metroSyncClient: MetroSyncClient, authRepository: AuthRepository, wearableDataService: WearableDataService) {
     var currentScreen by remember { mutableStateOf(WearScreen.BROWSE) }
