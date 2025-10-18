@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.util.Log
+import com.metrolist.music.metrosync.MetroSyncConstants
 import com.metrolist.music.metrosync.models.DeviceAnnouncement
 import com.metrolist.music.metrosync.models.DeviceCapability
 import com.metrolist.music.metrosync.models.DeviceType
@@ -23,8 +24,6 @@ class DeviceDiscovery(private val context: Context) {
 
     companion object {
         private const val TAG = "MetroSync.Discovery"
-        private const val SERVICE_TYPE = "_metrosync._tcp."
-        private const val SERVICE_NAME = "MetroSync"
     }
 
     /**
@@ -88,7 +87,7 @@ class DeviceDiscovery(private val context: Context) {
         }
 
         try {
-            nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+            nsdManager.discoverServices(MetroSyncConstants.SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start discovery", e)
             close(e)
@@ -113,7 +112,7 @@ class DeviceDiscovery(private val context: Context) {
     ): Flow<Boolean> = callbackFlow {
         val serviceInfo = NsdServiceInfo().apply {
             serviceName = deviceName
-            serviceType = SERVICE_TYPE
+            serviceType = MetroSyncConstants.SERVICE_TYPE
             setPort(port)
         }
 
