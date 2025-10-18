@@ -116,11 +116,11 @@ fun SignInScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Sign In",
+                            text = "Sign In with Passkey",
                             style = MaterialTheme.typography.title3
                         )
                         Text(
-                            text = "Use your phone",
+                            text = "Use Google Password Manager",
                             style = MaterialTheme.typography.caption1,
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -195,7 +195,7 @@ fun SignInScreen(
             
             item {
                 Text(
-                    text = "Sign in will be handled\non your paired phone",
+                    text = "Sign in with a passkey saved\nin Google Password Manager",
                     style = MaterialTheme.typography.caption2,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 24.dp)

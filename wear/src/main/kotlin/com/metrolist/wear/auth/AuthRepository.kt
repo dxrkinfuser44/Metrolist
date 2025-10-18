@@ -2,17 +2,18 @@ package com.metrolist.wear.auth
 
 import android.content.Context
 import androidx.credentials.CredentialManager
-import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetCredentialResponse
+import androidx.credentials.GetPasswordOption
+import androidx.credentials.GetPublicKeyCredentialOption
+import androidx.credentials.PasswordCredential
+import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -57,21 +58,32 @@ class AuthRepository @Inject constructor(
     }
     
     /**
-     * Sign in using Credential Manager with Remote Auth support
-     * This will delegate to the paired phone for authentication
+     * Sign in using Credential Manager with Passkey support
+     * This will use Google Password Manager to authenticate with passkeys
      */
     suspend fun signIn(): SignInResult {
         return try {
-            // Configure Google Sign-In for Remote Auth
-            // Note: Set a real Web Client ID from Google Cloud Console for production
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId("YOUR_WEB_CLIENT_ID.apps.googleusercontent.com") // Replace with actual client ID
-                .setAutoSelectEnabled(true)
-                .build()
+            // Request passkey authentication from Google Password Manager
+            // This JSON structure is required for WebAuthn/Passkey authentication
+            val requestJson = """
+                {
+                    "challenge": "${generateChallenge()}",
+                    "rpId": "metrolist.app",
+                    "userVerification": "required"
+                }
+            """.trimIndent()
+            
+            val publicKeyCredentialOption = GetPublicKeyCredentialOption(
+                requestJson = requestJson,
+                clientDataHash = null // Let the system generate this
+            )
+            
+            // Also support traditional password credentials from Google Password Manager
+            val passwordOption = GetPasswordOption()
             
             val request = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
+                .addCredentialOption(publicKeyCredentialOption)
+                .addCredentialOption(passwordOption)
                 .build()
             
             val result = credentialManager.getCredential(
@@ -85,6 +97,17 @@ class AuthRepository @Inject constructor(
         } catch (e: Exception) {
             SignInResult.Error("Sign-in error: ${e.message}")
         }
+    }
+    
+    /**
+     * Generate a random challenge for passkey authentication
+     */
+    private fun generateChallenge(): String {
+        // Generate a base64-encoded random challenge
+        val random = java.security.SecureRandom()
+        val bytes = ByteArray(32)
+        random.nextBytes(bytes)
+        return android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING or android.util.Base64.URL_SAFE)
     }
     
     /**
@@ -112,37 +135,87 @@ class AuthRepository @Inject constructor(
     
     /**
      * Handle the sign-in result from Credential Manager
+     * Supports both Passkey and Password credentials
      */
     private suspend fun handleSignInResult(result: GetCredentialResponse): SignInResult {
         val credential = result.credential
         
         return when (credential) {
-            is CustomCredential -> {
-                if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                    try {
-                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                        
-                        // Save user info
-                        context.authDataStore.edit { preferences ->
-                            preferences[USER_ID_KEY] = googleIdTokenCredential.id
-                            preferences[USER_EMAIL_KEY] = googleIdTokenCredential.id // ID can be used as email
-                            preferences[USER_NAME_KEY] = googleIdTokenCredential.displayName ?: ""
-                            preferences[ID_TOKEN_KEY] = googleIdTokenCredential.idToken
-                        }
-                        
-                        SignInResult.Success(
-                            userId = googleIdTokenCredential.id,
-                            email = googleIdTokenCredential.id,
-                            displayName = googleIdTokenCredential.displayName
-                        )
-                    } catch (e: Exception) {
-                        SignInResult.Error("Failed to parse Google credential: ${e.message}")
+            is PublicKeyCredential -> {
+                try {
+                    // Handle passkey authentication response
+                    val authenticationResponseJson = credential.authenticationResponseJson
+                    
+                    // Parse the response to extract user information
+                    // In a real app, you would verify this with your backend server
+                    val userId = extractUserIdFromPasskey(authenticationResponseJson)
+                    
+                    // Save user info
+                    context.authDataStore.edit { preferences ->
+                        preferences[USER_ID_KEY] = userId
+                        preferences[USER_EMAIL_KEY] = "$userId@metrolist.app"
+                        preferences[USER_NAME_KEY] = "Passkey User"
                     }
-                } else {
-                    SignInResult.Error("Unexpected credential type")
+                    
+                    SignInResult.Success(
+                        userId = userId,
+                        email = "$userId@metrolist.app",
+                        displayName = "Passkey User"
+                    )
+                } catch (e: Exception) {
+                    SignInResult.Error("Failed to parse passkey credential: ${e.message}")
                 }
             }
-            else -> SignInResult.Error("Unexpected credential type")
+            is PasswordCredential -> {
+                try {
+                    // Handle password credential from Google Password Manager
+                    val username = credential.id
+                    val password = credential.password
+                    
+                    // In a real app, you would verify this with your backend server
+                    // For now, we'll accept any saved password from Google Password Manager
+                    
+                    // Save user info
+                    context.authDataStore.edit { preferences ->
+                        preferences[USER_ID_KEY] = username
+                        preferences[USER_EMAIL_KEY] = username
+                        preferences[USER_NAME_KEY] = username
+                    }
+                    
+                    SignInResult.Success(
+                        userId = username,
+                        email = username,
+                        displayName = username
+                    )
+                } catch (e: Exception) {
+                    SignInResult.Error("Failed to parse password credential: ${e.message}")
+                }
+            }
+            else -> SignInResult.Error("Unexpected credential type: ${credential.type}")
+        }
+    }
+    
+    /**
+     * Extract user ID from passkey authentication response
+     */
+    private fun extractUserIdFromPasskey(responseJson: String): String {
+        return try {
+            // Parse the JSON response to extract user handle/ID
+            val json = org.json.JSONObject(responseJson)
+            val response = json.optJSONObject("response")
+            val userHandle = response?.optString("userHandle")
+            
+            if (!userHandle.isNullOrEmpty()) {
+                // Decode base64 user handle
+                val decoded = android.util.Base64.decode(userHandle, android.util.Base64.URL_SAFE)
+                String(decoded)
+            } else {
+                // Fallback to a generated ID
+                "passkey_user_${System.currentTimeMillis()}"
+            }
+        } catch (e: Exception) {
+            // Fallback to a generated ID
+            "passkey_user_${System.currentTimeMillis()}"
         }
     }
     
