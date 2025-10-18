@@ -174,14 +174,39 @@ This project and its contents are not affiliated with, funded, authorized, endor
 Any trademark, service mark, trade name, or other intellectual property rights used in this project are owned by the respective owners.
 
 **Made with ❤️ by [Mo Agamy](https://github.com/mostafaalagamy)**
-## Building the App on Windows
+## Building APKs
+
+### Separate Build Tasks for Phone and Watch
+
+The project provides dedicated build tasks for building phone and watch APKs separately:
+
+#### Build Phone APKs (all variants):
+```bash
+./gradlew buildPhoneApks
+```
+This builds all phone APK variants: arm64, armeabi, x86, x86_64, and universal.
+
+#### Build Watch APKs:
+```bash
+./gradlew buildWatchApks
+```
+This builds both debug and release watch/Wear OS APKs.
+
+#### Build All APKs (phone + watch):
+```bash
+./gradlew buildAllApks
+```
+This builds all phone and watch APKs in one command.
+
+### Building the App on Windows
 
 To build the app on Windows, follow these steps:
 
-1. Ensure you have Java Development Kit (JDK) 17 installed. ☕
+1. Ensure you have Java Development Kit (JDK) 21 installed. ☕
 2. Open a terminal or command prompt. 💻
 3. Navigate to the root directory of the project. 📂
 4. Run the following command to build the project: `gradlew.bat assembleDebug`. 🛠️
+5. Or use the new build tasks: `gradlew.bat buildPhoneApks` or `gradlew.bat buildWatchApks`. 🎯
 
 ## Installing Gradle on Windows
 
