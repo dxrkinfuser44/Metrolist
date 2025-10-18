@@ -3,6 +3,7 @@ package com.metrolist.music.metrosync.service
 import android.content.Context
 import android.net.wifi.p2p.WifiP2pDevice
 import android.util.Log
+import com.metrolist.music.metrosync.MetroSyncConstants
 import com.metrolist.music.metrosync.discovery.DeviceDiscovery
 import com.metrolist.music.metrosync.discovery.WiFiDirectManager
 import com.metrolist.music.metrosync.models.*
@@ -61,8 +62,6 @@ class MetroSyncService(private val context: Context) {
     
     companion object {
         private const val TAG = "MetroSyncService"
-        private const val DEFAULT_PORT = 45678
-        private const val BUFFER_SIZE = 8192
         
         private val json = Json {
             ignoreUnknownKeys = true
@@ -131,7 +130,7 @@ class MetroSyncService(private val context: Context) {
                 deviceDiscovery.registerDevice(
                     deviceId = deviceId,
                     deviceName = android.os.Build.MODEL,
-                    port = DEFAULT_PORT
+                    port = MetroSyncConstants.DEFAULT_PORT
                 ).collect { registered ->
                     Log.d(TAG, "NSD: Device registration: $registered")
                 }
@@ -178,7 +177,7 @@ class MetroSyncService(private val context: Context) {
      * Connect to a remote device
      * Note: Device is stored with a temporary key initially, then updated when announcement is received
      */
-    fun connectToDevice(host: String, port: Int = DEFAULT_PORT) {
+    fun connectToDevice(host: String, port: Int = MetroSyncConstants.DEFAULT_PORT) {
         scope.launch {
             try {
                 val socket = Socket(host, port)
@@ -236,8 +235,8 @@ class MetroSyncService(private val context: Context) {
     private fun startServer() {
         scope.launch {
             try {
-                serverSocket = ServerSocket(DEFAULT_PORT)
-                Log.d(TAG, "Server started on port $DEFAULT_PORT")
+                serverSocket = ServerSocket(MetroSyncConstants.DEFAULT_PORT)
+                Log.d(TAG, "Server started on port ${MetroSyncConstants.DEFAULT_PORT}")
                 
                 while (isRunning) {
                     try {

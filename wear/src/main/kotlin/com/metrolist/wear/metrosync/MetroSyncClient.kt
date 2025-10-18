@@ -66,8 +66,6 @@ class MetroSyncClient @Inject constructor(
     
     companion object {
         private const val TAG = "MetroSyncClient"
-        private const val SERVICE_TYPE = "_metrosync._tcp."
-        private const val BUFFER_SIZE = 8192
     }
 
     /**
@@ -127,7 +125,7 @@ class MetroSyncClient @Inject constructor(
         }
 
         try {
-            nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+            nsdManager.discoverServices(MetroSyncConstants.SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start discovery", e)
         }
