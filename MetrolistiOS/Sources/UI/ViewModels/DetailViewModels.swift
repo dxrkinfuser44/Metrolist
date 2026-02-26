@@ -1,5 +1,7 @@
 import Foundation
 import MetrolistCore
+import MetrolistNetworking
+import MetrolistPersistence
 
 // MARK: - Album Detail ViewModel
 
@@ -17,9 +19,9 @@ public final class AlbumViewModel {
     private let ytMusic: YouTubeMusic
     private let database: MusicDatabase
 
-    public init(browseId: String, ytMusic: YouTubeMusic = YouTubeMusic(), database: MusicDatabase) {
+    public init(browseId: String, ytMusic: YouTubeMusic? = nil, database: MusicDatabase) {
         self.browseId = browseId
-        self.ytMusic = ytMusic
+        self.ytMusic = ytMusic ?? YouTubeMusic(auth: InnerTubeAuth())
         self.database = database
     }
 
@@ -30,10 +32,10 @@ public final class AlbumViewModel {
         errorMessage = nil
 
         do {
-            let page = try await ytMusic.album(browseId: browseId)
+            let page = try await ytMusic.album(browseId: browseId).get()
             self.album = page
             self.songs = page.songs
-            self.artists = page.artists
+            self.artists = [page.album.artists.first].compactMap { $0 }
 
             // Check local library state
             if let model = database.album(id: browseId) {
@@ -66,9 +68,9 @@ public final class ArtistViewModel {
     private let ytMusic: YouTubeMusic
     private let database: MusicDatabase
 
-    public init(channelId: String, ytMusic: YouTubeMusic = YouTubeMusic(), database: MusicDatabase) {
+    public init(channelId: String, ytMusic: YouTubeMusic? = nil, database: MusicDatabase) {
         self.channelId = channelId
-        self.ytMusic = ytMusic
+        self.ytMusic = ytMusic ?? YouTubeMusic(auth: InnerTubeAuth())
         self.database = database
     }
 
@@ -79,12 +81,24 @@ public final class ArtistViewModel {
         errorMessage = nil
 
         do {
-            let page = try await ytMusic.artist(channelId: channelId)
+            let page = try await ytMusic.artist(browseId: channelId).get()
             self.artist = page
-            self.topSongs = page.songs
-            self.albums = page.albums
-            self.singles = page.singles
-            self.similarArtists = page.similar
+            // Extract items from sections by title
+            for section in page.sections {
+                let songItems = section.items.compactMap { $0 as? SongItem }
+                let albumItems = section.items.compactMap { $0 as? AlbumItem }
+                let artistItems = section.items.compactMap { $0 as? ArtistItem }
+                let title = section.title.lowercased()
+                if title.contains("song") && self.topSongs.isEmpty {
+                    self.topSongs = songItems
+                } else if title.contains("album") && self.albums.isEmpty {
+                    self.albums = albumItems
+                } else if title.contains("single") {
+                    self.singles = albumItems
+                } else if title.contains("similar") || title.contains("fan") {
+                    self.similarArtists = artistItems
+                }
+            }
 
             if let model = database.artist(id: channelId) {
                 isBookmarked = model.bookmarkedAt != nil
@@ -113,9 +127,9 @@ public final class PlaylistViewModel {
     private let ytMusic: YouTubeMusic
     private let database: MusicDatabase
 
-    public init(playlistId: String, ytMusic: YouTubeMusic = YouTubeMusic(), database: MusicDatabase) {
+    public init(playlistId: String, ytMusic: YouTubeMusic? = nil, database: MusicDatabase) {
         self.playlistId = playlistId
-        self.ytMusic = ytMusic
+        self.ytMusic = ytMusic ?? YouTubeMusic(auth: InnerTubeAuth())
         self.database = database
     }
 
@@ -126,10 +140,10 @@ public final class PlaylistViewModel {
         errorMessage = nil
 
         do {
-            let page = try await ytMusic.playlist(browseId: playlistId)
+            let page = try await ytMusic.playlist(playlistId: playlistId).get()
             self.playlist = page
             self.songs = page.songs
-            self.continuationToken = page.continuationToken
+            self.continuationToken = page.continuation
 
             if database.playlist(id: playlistId) != nil {
                 isInLibrary = true
@@ -148,9 +162,9 @@ public final class PlaylistViewModel {
         isLoading = true
 
         do {
-            let more = try await ytMusic.playlistContinuation(token: token)
+            let more = try await ytMusic.playlist(playlistId: "\(playlistId)&continuation=\(token)").get()
             self.songs.append(contentsOf: more.songs)
-            self.continuationToken = more.continuationToken
+            self.continuationToken = more.continuation
         } catch {
             MetrolistLogger.network.error("Playlist continuation failed: \(error)")
         }

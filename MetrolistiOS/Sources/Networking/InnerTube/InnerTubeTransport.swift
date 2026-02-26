@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import MetrolistCore
 
 // MARK: - InnerTube HTTP Transport
@@ -28,7 +31,8 @@ public actor InnerTubeTransport {
         config.timeoutIntervalForResource = 60
         config.urlCache = URLCache(
             memoryCapacity: 10 * 1024 * 1024,
-            diskCapacity: 50 * 1024 * 1024
+            diskCapacity: 50 * 1024 * 1024,
+            diskPath: nil
         )
         self.session = URLSession(configuration: config)
     }

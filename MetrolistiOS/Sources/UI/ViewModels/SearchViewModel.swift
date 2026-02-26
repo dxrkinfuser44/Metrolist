@@ -1,5 +1,6 @@
 import Foundation
 import MetrolistCore
+import MetrolistNetworking
 
 // MARK: - Search ViewModel
 
@@ -23,8 +24,8 @@ public final class SearchViewModel {
 
     private let ytMusic: YouTubeMusic
 
-    public init(ytMusic: YouTubeMusic = YouTubeMusic()) {
-        self.ytMusic = ytMusic
+    public init(ytMusic: YouTubeMusic? = nil) {
+        self.ytMusic = ytMusic ?? YouTubeMusic(auth: InnerTubeAuth())
     }
 
     @MainActor
@@ -36,10 +37,8 @@ public final class SearchViewModel {
         errorMessage = nil
 
         do {
-            let results = try await ytMusic.search(query: trimmed, filter: activeFilter)
-            self.searchResults = results.sections.map {
-                SearchResultSection(title: $0.title, items: $0.items)
-            }
+            let results = try await ytMusic.search(query: trimmed, filter: activeFilter).get()
+            self.searchResults = [SearchResultSection(title: "Results", items: results.items)]
         } catch {
             errorMessage = error.localizedDescription
             MetrolistLogger.network.error("Search failed: \(error)")
@@ -57,7 +56,7 @@ public final class SearchViewModel {
         }
 
         do {
-            let result = try await ytMusic.getSearchSuggestions(query: trimmed)
+            let result = try await ytMusic.searchSuggestions(query: trimmed).get()
             self.suggestions = result.queries
         } catch {
             // Silently fail for suggestions

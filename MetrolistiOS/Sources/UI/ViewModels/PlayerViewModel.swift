@@ -1,5 +1,7 @@
 import Foundation
 import MetrolistCore
+import MetrolistNetworking
+import MetrolistPlayback
 
 // MARK: - Player ViewModel
 
@@ -132,16 +134,15 @@ public final class PlayerViewModel {
         syncedLyrics = []
         currentLyricIndex = 0
 
-        do {
-            let artistName = item.artists.first?.name ?? ""
-            let result = try await lyricsHelper.fetchLyrics(
-                title: item.title, artist: artistName, duration: Int(duration)
-            )
-            self.currentLyrics = result.lyrics
-            self.lyricsProvider = result.provider
-            self.syncedLyrics = parseSyncedLyrics(result.lyrics)
-        } catch {
-            MetrolistLogger.lyrics.error("Failed to load lyrics: \(error)")
+        let artistName = item.artists.first?.name ?? ""
+        if let result = await lyricsHelper.getLyrics(
+            title: item.title, artist: artistName, duration: Int(duration)
+        ) {
+            self.currentLyrics = result.0
+            self.lyricsProvider = result.1
+            self.syncedLyrics = parseSyncedLyrics(result.0)
+        } else {
+            MetrolistLogger.lyrics.error("Failed to load lyrics for: \(item.title)")
         }
 
         isLoadingLyrics = false
@@ -181,13 +182,22 @@ public final class PlayerViewModel {
         let query = "\(item.title) \(item.artists.first?.name ?? "")"
         let searchURL = "https://music.apple.com/search?term=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
 
+        guard let url = URL(string: searchURL) else {
+            isLoadingAnimatedArtwork = false
+            return
+        }
+
         do {
-            let cachedURL = await artworkCache.cachedArtwork(for: searchURL)
-            if let cachedURL {
+            let hasCached = await artworkCache.hasCachedArtwork(for: searchURL)
+            if hasCached {
+                let cachedURL = try await artworkCache.getOrDownload(albumId: searchURL, videoURL: url)
                 self.animatedArtworkURL = cachedURL
-            } else if let videoURL = try await artworkFetcher.fetchAnimatedArtwork(for: searchURL) {
-                let localURL = try await artworkCache.cacheArtwork(for: searchURL, from: videoURL)
-                self.animatedArtworkURL = localURL
+            } else {
+                let result = await artworkFetcher.fetchAnimatedArtworkURL(from: url)
+                if case .success(let videoURL) = result {
+                    let localURL = try await artworkCache.getOrDownload(albumId: searchURL, videoURL: videoURL)
+                    self.animatedArtworkURL = localURL
+                }
             }
         } catch {
             MetrolistLogger.animatedArtwork.error("Animated artwork fetch failed: \(error)")

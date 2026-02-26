@@ -16,6 +16,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
         .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.7.0"),
         .package(url: "https://github.com/kean/Nuke.git", from: "12.8.0"),
         .package(url: "https://github.com/hmlongco/Factory.git", from: "2.4.0"),
@@ -25,6 +26,7 @@ let package = Package(
             name: "MetrolistCore",
             dependencies: [
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+                .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux, .windows])),
             ],
             path: "Sources/MetrolistCore"
         ),
@@ -33,6 +35,7 @@ let package = Package(
             dependencies: [
                 "MetrolistCore",
                 "SwiftSoup",
+                .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux, .windows])),
             ],
             path: "Sources/Networking"
         ),
