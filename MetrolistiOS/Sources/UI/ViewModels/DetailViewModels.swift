@@ -86,18 +86,15 @@ public final class ArtistViewModel {
             self.artist = page
             // Extract items from sections by title
             for section in page.sections {
-                let songItems = section.items.compactMap { $0 as? SongItem }
-                let albumItems = section.items.compactMap { $0 as? AlbumItem }
-                let artistItems = section.items.compactMap { $0 as? ArtistItem }
                 let title = section.title.lowercased()
                 if title.contains("song") && self.topSongs.isEmpty {
-                    self.topSongs = songItems
+                    self.topSongs = section.items.compactMap { $0 as? SongItem }
                 } else if title.contains("album") && self.albums.isEmpty {
-                    self.albums = albumItems
+                    self.albums = section.items.compactMap { $0 as? AlbumItem }
                 } else if title.contains("single") {
-                    self.singles = albumItems
+                    self.singles = section.items.compactMap { $0 as? AlbumItem }
                 } else if title.contains("similar") || title.contains("fan") {
-                    self.similarArtists = artistItems
+                    self.similarArtists = section.items.compactMap { $0 as? ArtistItem }
                 }
             }
 
@@ -163,8 +160,9 @@ public final class PlaylistViewModel {
         isLoading = true
 
         do {
-            let more = try await ytMusic.playlist(playlistId: "\(playlistId)&continuation=\(token)").get()
-            self.songs.append(contentsOf: more.songs)
+            let more = try await ytMusic.browseContinuation(token: token).get()
+            let newSongs = more.items.compactMap { $0 as? SongItem }
+            self.songs.append(contentsOf: newSongs)
             self.continuationToken = more.continuation
         } catch {
             MetrolistLogger.network.error("Playlist continuation failed: \(error)")

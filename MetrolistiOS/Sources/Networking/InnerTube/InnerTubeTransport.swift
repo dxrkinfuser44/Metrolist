@@ -29,6 +29,7 @@ public actor InnerTubeTransport {
         ]
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 60
+        // diskPath is explicitly set to nil for Linux compatibility where the two-parameter initializer is unavailable
         config.urlCache = URLCache(
             memoryCapacity: 10 * 1024 * 1024,
             diskCapacity: 50 * 1024 * 1024,

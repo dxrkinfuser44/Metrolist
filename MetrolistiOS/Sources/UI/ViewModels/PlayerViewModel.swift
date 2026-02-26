@@ -136,12 +136,12 @@ public final class PlayerViewModel {
         currentLyricIndex = 0
 
         let artistName = item.artists.first?.name ?? ""
-        if let result = await lyricsHelper.getLyrics(
+        if let (lyrics, provider) = await lyricsHelper.getLyrics(
             title: item.title, artist: artistName, duration: Int(duration)
         ) {
-            self.currentLyrics = result.0
-            self.lyricsProvider = result.1
-            self.syncedLyrics = parseSyncedLyrics(result.0)
+            self.currentLyrics = lyrics
+            self.lyricsProvider = provider
+            self.syncedLyrics = parseSyncedLyrics(lyrics)
         } else {
             MetrolistLogger.lyrics.error("Failed to load lyrics for: \(item.title)")
         }

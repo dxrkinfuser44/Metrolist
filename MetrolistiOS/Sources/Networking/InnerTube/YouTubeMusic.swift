@@ -157,6 +157,18 @@ public actor YouTubeMusic {
         }
     }
 
+    // MARK: - Browse Continuation
+
+    public func browseContinuation(token: String) async -> Result<BrowseContinuationResult, Error> {
+        do {
+            let data = try await transport.browse(continuation: token)
+            let items = try parseBrowseContinuationItems(data: data)
+            return .success(items)
+        } catch {
+            return .failure(error)
+        }
+    }
+
     // MARK: - Library Actions
 
     public func likeVideo(videoId: String) async -> Result<Void, Error> {
@@ -328,6 +340,16 @@ public struct NextResult: Sendable {
     }
 }
 
+public struct BrowseContinuationResult: Sendable {
+    public let items: [any YTItem]
+    public let continuation: String?
+
+    public init(items: [any YTItem] = [], continuation: String? = nil) {
+        self.items = items
+        self.continuation = continuation
+    }
+}
+
 public struct AccountInfo: Sendable {
     public let name: String
     public let email: String?
@@ -455,5 +477,47 @@ extension YouTubeMusic {
         // Navigate deeply nested response to find account info
         let name = "Unknown"
         return AccountInfo(name: name)
+    }
+
+    private func parseBrowseContinuationItems(data: Data) throws -> BrowseContinuationResult {
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        // Parse continuation response for items and next continuation token
+        var items: [any YTItem] = []
+        var continuation: String?
+
+        if let continuationContents = json?["continuationContents"] as? [String: Any] {
+            if let sectionList = continuationContents["musicPlaylistShelfContinuation"] as? [String: Any] {
+                if let contents = sectionList["contents"] as? [[String: Any]] {
+                    items = contents.compactMap { parseSongRenderer($0) }
+                }
+                if let conts = sectionList["continuations"] as? [[String: Any]],
+                   let next = conts.first?["nextContinuationData"] as? [String: Any] {
+                    continuation = next["continuation"] as? String
+                }
+            }
+        }
+
+        return BrowseContinuationResult(items: items, continuation: continuation)
+    }
+
+    private func parseSongRenderer(_ json: [String: Any]) -> SongItem? {
+        guard let renderer = json["musicResponsiveListItemRenderer"] as? [String: Any] ?? json["playlistPanelVideoRenderer"] as? [String: Any] else {
+            return nil
+        }
+        let videoId = (renderer["playlistItemData"] as? [String: Any])?["videoId"] as? String
+            ?? renderer["videoId"] as? String ?? ""
+        let title = extractText(from: renderer, key: "flexColumns", index: 0) ?? "Unknown"
+        return SongItem(id: videoId, title: title)
+    }
+
+    private func extractText(from renderer: [String: Any], key: String, index: Int) -> String? {
+        guard let columns = renderer[key] as? [[String: Any]],
+              index < columns.count,
+              let textRenderer = columns[index]["musicResponsiveListItemFlexColumnRenderer"] as? [String: Any],
+              let text = textRenderer["text"] as? [String: Any],
+              let runs = text["runs"] as? [[String: Any]] else {
+            return nil
+        }
+        return runs.compactMap { $0["text"] as? String }.joined()
     }
 }
