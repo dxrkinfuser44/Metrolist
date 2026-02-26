@@ -31,7 +31,7 @@ public actor YouTubeMusic {
             // Parse suggestions from the nested InnerTube response
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             var queries: [String] = []
-            var items: [any YTItem] = []
+            let items: [any YTItem] = []
 
             if let contents = json?["contents"] as? [[String: Any]] {
                 for content in contents {
@@ -473,7 +473,7 @@ extension YouTubeMusic {
     }
 
     private func parseAccountInfo(data: Data) throws -> AccountInfo {
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        _ = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         // Navigate deeply nested response to find account info
         let name = "Unknown"
         return AccountInfo(name: name)
