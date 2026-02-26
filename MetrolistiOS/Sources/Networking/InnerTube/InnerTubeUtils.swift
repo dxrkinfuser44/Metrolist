@@ -1,6 +1,19 @@
 import Foundation
 import MetrolistCore
 
+// MARK: - NavigationEndpoint to WatchEndpoint Conversion
+
+extension NavigationEndpoint {
+    func toWatchEndpoint() -> WatchEndpoint? {
+        guard let endpoint = anyWatchEndpoint else { return nil }
+        return WatchEndpoint(
+            videoId: endpoint.videoId,
+            playlistId: endpoint.playlistId,
+            params: nil
+        )
+    }
+}
+
 // MARK: - String Parsing Extensions
 
 extension String {
