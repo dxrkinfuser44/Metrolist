@@ -487,6 +487,10 @@
     <string name="error_copied">Error info copied to clipboard</string>
     <string name="copy_error">Copy error</string>
     <string name="error_copy_hint">Copy error info to help developers debug the issue</string>
+    <string name="error_episode_save">Failed to save episode</string>
+    <string name="error_episode_remove">Failed to remove episode</string>
+    <string name="error_podcast_subscribe">Failed to subscribe to podcast</string>
+    <string name="error_podcast_unsubscribe">Failed to unsubscribe from podcast</string>
 
     <!-- Widget strings -->
     <string name="album_art">Album art</string>
@@ -719,6 +723,9 @@
     <string name="youtube_url_column">YouTube URL Column (Optional)</string>
     <string name="continue_action">Continue</string>
     <string name="importing_csv">Importing CSV</string>
+    <string name="importing_playlist">Importing Playlist</string>
+
+    <string name="importing_song">Importing %s</string>
     <string name="recently_converted">Recently Converted</string>
     <string name="column_label">Col %d</string>
     <string name="csv_import_failed">Failed to import CSV file</string>
@@ -784,6 +791,7 @@
     <string name="credits_discord">Discord Server</string>
     <string name="credits_telegram">Telegram Channel</string>
     <string name="credits_website">Website</string>
+    <string name="credits_instagram">Instagram</string>
     <string name="credits_github">GitHub</string>
     <string name="credits_view_repo">View Repository</string>
     <string name="app_version_info">%1$s • %2$s</string>
@@ -794,4 +802,34 @@
     <string name="wanna_play_favorite_song">Wanna play their favorite song?</string>
     <string name="yeah">Yeah</string>
     <string name="stands_with_palestine">This project stands with Palestine 🇵🇸</string>
+    <!-- Podcasts -->
+    <string name="filter_podcasts">Podcasts</string>
+    <string name="view_podcast">View podcast</string>
+    <string name="podcast_channels">Podcast Channels</string>
+    <string name="latest_episodes">Latest Episodes</string>
+    <string name="your_shows">Your Shows</string>
+    <string name="subscribed_channels">Subscribed Channels</string>
+    <string name="new_episodes">New Episodes</string>
+    <string name="episodes_for_later">Episodes for Later</string>
+    <string name="save_episode_for_later">Save for later</string>
+    <string name="save_episode_for_later_desc">Add to your Episodes for Later playlist</string>
+    <string name="saved_episode">Saved to Episodes for Later</string>
+    <string name="remove_episode_from_saved">Remove from saved</string>
+    <string name="subscribe_to_podcast">Save podcast to library</string>
+    <string name="save_to_library">Save to Library</string>
+    <string name="saved_to_library">Saved</string>
+    <plurals name="n_episode">
+        <item quantity="one">%d episode</item>
+        <item quantity="other">%d episodes</item>
+    </plurals>
+
+    <!-- Restore confirmation dialog -->
+    <string name="restore_confirm_title">Restore backup?</string>
+    <string name="restore_confirm_message">This will restore your app data from the backup.</string>
+    <string name="restore_account_warning">You will need to log in again after restore. The following account will be signed out:</string>
+    <string name="restore">Restore</string>
+    <string name="checking_previous_account">Checking for previous account…</string>
+    <string name="no_account_found">No account found</string>
+    <string name="restore_success">Restore completed successfully</string>
+    <string name="no_songs_found">No songs found. Invalid file, or perhaps no song matches were found.</string>
 </resources>
