@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 // MARK: - Route Definitions
@@ -211,3 +212,5 @@ public struct MainTabView: View {
         }
     }
 }
+
+#endif

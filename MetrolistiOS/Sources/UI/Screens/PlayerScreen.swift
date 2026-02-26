@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import AVKit
 import NukeUI
@@ -396,3 +397,5 @@ struct LyricsSheet: View {
         .presentationDetents([.medium, .large])
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if canImport(AVFoundation)
 import Foundation
 import AVFoundation
 import Combine
@@ -553,3 +554,5 @@ private extension Array where Element == MediaMetadata {
         return copy
     }
 }
+
+#endif

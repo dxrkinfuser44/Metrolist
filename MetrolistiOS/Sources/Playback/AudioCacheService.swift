@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import MetrolistCore
 
 // MARK: - Audio Cache Service
@@ -135,3 +138,4 @@ public actor AudioCacheService {
         }
     }
 }
+

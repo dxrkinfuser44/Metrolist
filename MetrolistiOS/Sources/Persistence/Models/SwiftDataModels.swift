@@ -1,3 +1,4 @@
+#if canImport(SwiftData)
 import Foundation
 import SwiftData
 import MetrolistCore
@@ -435,3 +436,5 @@ public final class SpeedDialItemModel {
         self.createDate = createDate
     }
 }
+
+#endif

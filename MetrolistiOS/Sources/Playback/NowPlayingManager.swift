@@ -1,3 +1,4 @@
+#if canImport(MediaPlayer)
 import Foundation
 import MediaPlayer
 import UIKit
@@ -224,3 +225,5 @@ public final class NowPlayingManager {
         infoCenter.nowPlayingInfo = nil
     }
 }
+
+#endif

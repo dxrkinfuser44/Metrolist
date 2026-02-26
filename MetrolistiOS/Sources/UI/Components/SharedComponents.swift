@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import NukeUI
 import MetrolistCore
@@ -205,3 +206,5 @@ public struct ProgressSlider: View {
         return CGFloat(min(max(normalized, 0), 1)) * totalWidth
     }
 }
+
+#endif
