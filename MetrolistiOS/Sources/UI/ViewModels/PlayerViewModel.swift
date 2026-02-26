@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import Foundation
 import MetrolistCore
 import MetrolistNetworking
@@ -216,3 +217,5 @@ public final class PlayerViewModel {
         return String(format: "%d:%02d", mins, secs)
     }
 }
+
+#endif

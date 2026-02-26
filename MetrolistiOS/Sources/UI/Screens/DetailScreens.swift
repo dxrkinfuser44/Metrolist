@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import NukeUI
 import MetrolistCore
@@ -392,3 +393,5 @@ private extension AudioQuality {
         }
     }
 }
+
+#endif

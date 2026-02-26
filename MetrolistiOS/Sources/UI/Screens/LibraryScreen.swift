@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import MetrolistCore
 
@@ -267,3 +268,5 @@ struct CreatePlaylistSheet: View {
         .presentationDetents([.medium])
     }
 }
+
+#endif

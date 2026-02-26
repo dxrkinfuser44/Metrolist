@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import os
 import MetrolistNetworking
@@ -114,3 +115,5 @@ enum PlayerError: Error, LocalizedError {
         }
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import Foundation
 import MetrolistCore
 import MetrolistNetworking
@@ -69,3 +70,5 @@ public final class SearchViewModel {
         errorMessage = nil
     }
 }
+
+#endif

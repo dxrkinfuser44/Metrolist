@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import Foundation
 import MetrolistCore
 import MetrolistNetworking
@@ -218,3 +219,5 @@ public final class SettingsViewModel {
         self.preferences = preferences
     }
 }
+
+#endif

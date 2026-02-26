@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import Foundation
 import MetrolistCore
 import MetrolistPersistence
@@ -129,3 +130,5 @@ public final class LibraryPlaylistsViewModel {
         loadPlaylists()
     }
 }
+
+#endif

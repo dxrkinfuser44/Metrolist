@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import MetrolistCore
 
@@ -122,3 +123,5 @@ private extension SearchFilter {
         }
     }
 }
+
+#endif

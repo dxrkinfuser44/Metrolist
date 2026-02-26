@@ -62,8 +62,8 @@ let package = Package(
                 "MetrolistNetworking",
                 "MetrolistPersistence",
                 "MetrolistPlayback",
-                .product(name: "NukeUI", package: "Nuke"),
-                .product(name: "Factory", package: "Factory"),
+                .product(name: "NukeUI", package: "Nuke", condition: .when(platforms: [.iOS, .macOS, .tvOS, .watchOS, .visionOS])),
+                .product(name: "Factory", package: "Factory", condition: .when(platforms: [.iOS, .macOS, .tvOS, .watchOS, .visionOS])),
             ],
             path: "Sources/UI"
         ),

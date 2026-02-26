@@ -1,3 +1,4 @@
+#if canImport(Combine)
 import Foundation
 import Combine
 
@@ -383,3 +384,5 @@ public final class UserPreferences: ObservableObject {
         contentCountry = defaults.string(forKey: Keys.contentCountry) ?? "US"
     }
 }
+
+#endif
