@@ -1,4 +1,10 @@
 import SwiftUI
+import os
+import MetrolistNetworking
+import MetrolistPlayback
+import MetrolistPersistence
+
+private let logger = Logger(subsystem: "com.metrolist.music", category: "general")
 
 // MARK: - App Entry Point
 
@@ -57,12 +63,16 @@ struct MetrolistApp: App {
             nowPlayingManager.bind(to: playerService)
 
             // Configure stream resolver
-            playerService.setStreamResolver { [preferences] videoId in
-                let ytMusic = YouTubeMusic()
-                let response = try await ytMusic.player(videoId: videoId)
-                guard let format = response.streamingData?.adaptiveFormats
+            let innerAuth = InnerTubeAuth()
+            let ytMusic = YouTubeMusic(auth: innerAuth)
+            playerService.setStreamResolver { [preferences, ytMusic] videoId in
+                // Call the player API which returns a Result<PlayerResponse, Error>
+                let result = await ytMusic.player(videoId: videoId)
+                let response = try result.get()
+
+                guard let format = (response.streamingData?.adaptiveFormats ?? [])
                     .filter({ $0.mimeType.contains("audio") })
-                    .sorted(by: { $0.bitrate > $1.bitrate })
+                    .sorted(by: { $0.bitrate ?? 0 > $1.bitrate ?? 0 })
                     .first,
                       let urlString = format.url,
                       let url = URL(string: urlString) else {
@@ -77,10 +87,10 @@ struct MetrolistApp: App {
             playerService.loudnessBaseGain = Float(preferences.loudnessBaseGain)
             playerService.crossfadeDuration = preferences.crossfadeDuration
 
-            MetrolistLogger.general.info("Metrolist iOS initialized successfully")
+            logger.info("Metrolist iOS initialized successfully")
         } catch {
             initError = error.localizedDescription
-            MetrolistLogger.general.error("Initialization failed: \(error)")
+            logger.error("Initialization failed: \(error.localizedDescription)")
         }
     }
 

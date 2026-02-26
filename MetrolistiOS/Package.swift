@@ -1,10 +1,11 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
     name: "MetrolistiOS",
     platforms: [
-        .iOS(.v26)
+        .iOS(.v26),
+        .macOS(.v14)
     ],
     products: [
         .library(name: "MetrolistCore", targets: ["MetrolistCore"]),
@@ -25,7 +26,7 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
             ],
-            path: "Sources/Core"
+            path: "Sources/MetrolistCore"
         ),
         .target(
             name: "MetrolistNetworking",
@@ -63,15 +64,6 @@ let package = Package(
             ],
             path: "Sources/UI"
         ),
-        .testTarget(
-            name: "MetrolistCoreTests",
-            dependencies: ["MetrolistCore"],
-            path: "Tests/CoreTests"
-        ),
-        .testTarget(
-            name: "MetrolistNetworkingTests",
-            dependencies: ["MetrolistNetworking"],
-            path: "Tests/NetworkingTests"
-        ),
+        // Test targets removed: no corresponding Tests/ directories in this package
     ]
 )
