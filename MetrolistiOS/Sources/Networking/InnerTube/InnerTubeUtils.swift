@@ -9,7 +9,8 @@ extension NavigationEndpoint {
         return WatchEndpoint(
             videoId: endpoint.videoId,
             playlistId: endpoint.playlistId,
-            params: nil
+            index: endpoint.index,
+            watchEndpointMusicSupportedConfigs: endpoint.watchEndpointMusicSupportedConfigs
         )
     }
 }

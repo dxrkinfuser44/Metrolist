@@ -91,65 +91,56 @@ extension YouTubeMusic {
         guard let videoId = renderer.playlistItemData?.videoId else { return nil }
         guard let title = renderer.flexColumns.first?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.first?.text else { return nil }
 
-        let libraryTokens = PageHelper.extractLibraryTokensFromMenuItems(renderer.menu?.menuRenderer?.items)
-
-        let artists = secondaryLine?.first?.oddElements().map {
-            Artist(name: $0.text, id: $0.navigationEndpoint?.browseEndpoint?.browseId)
+        let artists = secondaryLine?.first?.oddElements().compactMap { run -> ArtistItem? in
+            guard let browseId = run.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
+            return ArtistItem(id: browseId, title: run.text)
         } ?? []
 
-        let album = secondaryLine?[safe: 1]?.first(where: { $0.navigationEndpoint?.browseEndpoint != nil }).map {
-            Album(name: $0.text, id: $0.navigationEndpoint?.browseEndpoint?.browseId)
+        let album = secondaryLine?[safe: 1]?.first(where: { $0.navigationEndpoint?.browseEndpoint != nil }).flatMap { run -> AlbumItem? in
+            guard let browseId = run.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
+            return AlbumItem(id: browseId, title: run.text)
         }
 
         let duration = secondaryLine?.last?.first?.text.parseTime()
-        let thumbnail = renderer.thumbnail?.getThumbnailUrl() ?? ""
+        let thumbnailUrl = renderer.thumbnail?.getThumbnailUrl() ?? ""
+        let thumbnails = thumbnailUrl.isEmpty ? [] : [Thumbnail(url: thumbnailUrl)]
         let explicit = renderer.badges?.contains(where: { $0.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE" }) == true
 
         return SongItem(
             id: videoId,
             title: title,
+            thumbnails: thumbnails,
             artists: artists,
             album: album,
             duration: duration,
-            thumbnail: thumbnail,
-            explicit: explicit,
-            libraryAddToken: libraryTokens.addToken,
-            libraryRemoveToken: libraryTokens.removeToken,
-            musicVideoType: renderer.musicVideoType
+            isExplicit: explicit
         )
     }
 
     private func parseArtistItem(_ renderer: MusicResponsiveListItemRenderer) -> ArtistItem? {
         guard let browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
         guard let title = renderer.flexColumns.first?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.first?.text else { return nil }
-        guard let thumbnail = renderer.thumbnail?.getThumbnailUrl() else { return nil }
 
-        let shuffleEndpoint = renderer.menu?.menuRenderer?.items?.first(where: {
-            $0.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE"
-        })?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
-
-        let radioEndpoint = renderer.menu?.menuRenderer?.items?.first(where: {
-            $0.menuNavigationItemRenderer?.icon?.iconType == "MIX"
-        })?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
+        let thumbnailUrl = renderer.thumbnail?.getThumbnailUrl() ?? ""
+        let thumbnails = thumbnailUrl.isEmpty ? [] : [Thumbnail(url: thumbnailUrl)]
 
         return ArtistItem(
             id: browseId,
             title: title,
-            thumbnail: thumbnail,
-            shuffleEndpoint: shuffleEndpoint,
-            radioEndpoint: radioEndpoint
+            thumbnails: thumbnails
         )
     }
 
     private func parseAlbumItem(_ renderer: MusicResponsiveListItemRenderer, secondaryLine: [[Run]]?) -> AlbumItem? {
         guard let browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
         guard let title = renderer.flexColumns.first?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.first?.text else { return nil }
-        guard let thumbnail = renderer.thumbnail?.getThumbnailUrl() else { return nil }
 
-        let playlistId = renderer.overlay?.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint?.anyWatchEndpoint?.playlistId
+        let thumbnailUrl = renderer.thumbnail?.getThumbnailUrl() ?? ""
+        let thumbnails = thumbnailUrl.isEmpty ? [] : [Thumbnail(url: thumbnailUrl)]
 
-        let artists = secondaryLine?[safe: 1]?.oddElements().map {
-            Artist(name: $0.text, id: $0.navigationEndpoint?.browseEndpoint?.browseId)
+        let artists = secondaryLine?[safe: 1]?.oddElements().compactMap { run -> ArtistItem? in
+            guard let artistBrowseId = run.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
+            return ArtistItem(id: artistBrowseId, title: run.text)
         } ?? []
 
         let year = secondaryLine?[safe: 2]?.first?.text
@@ -157,12 +148,12 @@ extension YouTubeMusic {
 
         return AlbumItem(
             id: browseId,
-            playlistId: playlistId,
             title: title,
+            thumbnails: thumbnails,
+            browseId: browseId,
             artists: artists,
             year: year != nil ? Int(year!) : nil,
-            thumbnail: thumbnail,
-            explicit: explicit
+            isExplicit: explicit
         )
     }
 
@@ -170,60 +161,57 @@ extension YouTubeMusic {
         guard let browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
         let playlistId = browseId.replacingOccurrences(of: "VL", with: "")
         guard let title = renderer.flexColumns.first?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.first?.text else { return nil }
-        guard let thumbnail = renderer.thumbnail?.getThumbnailUrl() else { return nil }
 
-        let author = secondaryLine?.first?.first.map {
-            Artist(name: $0.text, id: $0.navigationEndpoint?.browseEndpoint?.browseId)
+        let thumbnailUrl = renderer.thumbnail?.getThumbnailUrl() ?? ""
+        let thumbnails = thumbnailUrl.isEmpty ? [] : [Thumbnail(url: thumbnailUrl)]
+
+        let author = secondaryLine?.first?.first.flatMap { run -> ArtistItem? in
+            guard let authorBrowseId = run.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
+            return ArtistItem(id: authorBrowseId, title: run.text)
         }
 
         let songCountText = renderer.flexColumns[safe: 1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.last?.text ?? ""
-
-        let playEndpoint = renderer.overlay?.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint?.watchPlaylistEndpoint
-
-        let shuffleEndpoint = renderer.menu?.menuRenderer?.items?.first(where: {
-            $0.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE"
-        })?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
-
-        let radioEndpoint = renderer.menu?.menuRenderer?.items?.first(where: {
-            $0.menuNavigationItemRenderer?.icon?.iconType == "MIX"
-        })?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
+        let songCount = Int(songCountText.components(separatedBy: " ").first ?? "")
 
         return PlaylistItem(
             id: playlistId,
             title: title,
-            author: author,
-            songCountText: songCountText,
-            thumbnail: thumbnail,
-            playEndpoint: playEndpoint,
-            shuffleEndpoint: shuffleEndpoint,
-            radioEndpoint: radioEndpoint
+            thumbnails: thumbnails,
+            songCount: songCount,
+            author: author
         )
     }
 
     private func parsePodcastItem(_ renderer: MusicResponsiveListItemRenderer, secondaryLine: [[Run]]?) -> PodcastItem? {
         guard let browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
         guard let title = renderer.flexColumns.first?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.first?.text else { return nil }
-        guard let thumbnail = renderer.thumbnail?.getThumbnailUrl() else { return nil }
 
-        let author = secondaryLine?.first?.first.map {
-            Artist(name: $0.text, id: $0.navigationEndpoint?.browseEndpoint?.browseId)
+        let thumbnailUrl = renderer.thumbnail?.getThumbnailUrl() ?? ""
+        let thumbnails = thumbnailUrl.isEmpty ? [] : [Thumbnail(url: thumbnailUrl)]
+
+        let author = secondaryLine?.first?.first.flatMap { run -> ArtistItem? in
+            guard let authorBrowseId = run.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
+            return ArtistItem(id: authorBrowseId, title: run.text)
         }
 
         return PodcastItem(
             id: browseId,
             title: title,
-            author: author,
-            thumbnail: thumbnail
+            thumbnails: thumbnails,
+            author: author
         )
     }
 
     private func parseEpisodeItem(_ renderer: MusicResponsiveListItemRenderer, secondaryLine: [[Run]]?) -> EpisodeItem? {
         guard let videoId = renderer.playlistItemData?.videoId else { return nil }
         guard let title = renderer.flexColumns.first?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.first?.text else { return nil }
-        guard let thumbnail = renderer.thumbnail?.getThumbnailUrl() else { return nil }
 
-        let author = secondaryLine?.first?.first.map {
-            Artist(name: $0.text, id: $0.navigationEndpoint?.browseEndpoint?.browseId)
+        let thumbnailUrl = renderer.thumbnail?.getThumbnailUrl() ?? ""
+        let thumbnails = thumbnailUrl.isEmpty ? [] : [Thumbnail(url: thumbnailUrl)]
+
+        let podcastInfo = secondaryLine?.first?.first.flatMap { run -> PodcastItem? in
+            guard let podcastBrowseId = run.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
+            return PodcastItem(id: podcastBrowseId, title: run.text)
         }
 
         let duration = secondaryLine?.last?.first?.text.parseTime()
@@ -231,9 +219,9 @@ extension YouTubeMusic {
         return EpisodeItem(
             id: videoId,
             title: title,
-            author: author,
-            duration: duration,
-            thumbnail: thumbnail
+            thumbnails: thumbnails,
+            podcast: podcastInfo,
+            duration: duration
         )
     }
 
@@ -259,22 +247,25 @@ extension YouTubeMusic {
         // Get album info
         let title = (responsiveHeader?.title ?? response.header?.musicDetailHeaderRenderer?.title)?.runs?.first?.text ?? ""
         let year = (responsiveHeader?.subtitle ?? response.header?.musicDetailHeaderRenderer?.subtitle)?.runs?.last?.text
-        let thumbnail = response.background?.musicThumbnailRenderer?.getThumbnailUrl() ?? response.header?.musicDetailHeaderRenderer?.thumbnail?.getThumbnailUrl() ?? ""
+        let thumbnailUrl = response.background?.musicThumbnailRenderer?.getThumbnailUrl() ?? response.header?.musicDetailHeaderRenderer?.thumbnail?.getThumbnailUrl() ?? ""
+        let thumbnails = thumbnailUrl.isEmpty ? [] : [Thumbnail(url: thumbnailUrl)]
 
-        let artists = responsiveHeader?.straplineTextOne?.runs?.oddElements().map {
-            Artist(name: $0.text, id: $0.navigationEndpoint?.browseEndpoint?.browseId)
-        } ?? response.header?.musicDetailHeaderRenderer?.subtitle?.runs?.splitBySeparator()[safe: 1]?.oddElements().map {
-            Artist(name: $0.text, id: $0.navigationEndpoint?.browseEndpoint?.browseId)
+        let artists = responsiveHeader?.straplineTextOne?.runs?.oddElements().compactMap { run -> ArtistItem? in
+            guard let browseId = run.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
+            return ArtistItem(id: browseId, title: run.text)
+        } ?? response.header?.musicDetailHeaderRenderer?.subtitle?.runs?.splitBySeparator()[safe: 1]?.oddElements().compactMap { run -> ArtistItem? in
+            guard let browseId = run.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
+            return ArtistItem(id: browseId, title: run.text)
         } ?? []
 
         let album = AlbumItem(
             id: response.header?.musicDetailHeaderRenderer?.title?.runs?.first?.navigationEndpoint?.browseEndpoint?.browseId ?? "",
-            playlistId: playlistId,
             title: title,
+            thumbnails: thumbnails,
+            browseId: response.header?.musicDetailHeaderRenderer?.title?.runs?.first?.navigationEndpoint?.browseEndpoint?.browseId ?? "",
             artists: artists,
             year: year != nil ? Int(year!) : nil,
-            thumbnail: thumbnail,
-            explicit: false
+            isExplicit: false
         )
 
         // Get songs
@@ -293,10 +284,9 @@ extension YouTubeMusic {
         guard let videoId = renderer.playlistItemData?.videoId else { return nil }
         guard let title = PageHelper.extractRuns(from: renderer.flexColumns, typeLike: "MUSIC_VIDEO").first?.text else { return nil }
 
-        let libraryTokens = PageHelper.extractLibraryTokensFromMenuItems(renderer.menu?.menuRenderer?.items)
-
-        var artists = PageHelper.extractRuns(from: renderer.flexColumns, typeLike: "MUSIC_PAGE_TYPE_ARTIST").map {
-            Artist(name: $0.text, id: $0.navigationEndpoint?.browseEndpoint?.browseId)
+        var artists = PageHelper.extractRuns(from: renderer.flexColumns, typeLike: "MUSIC_PAGE_TYPE_ARTIST").compactMap { run -> ArtistItem? in
+            guard let browseId = run.navigationEndpoint?.browseEndpoint?.browseId else { return nil }
+            return ArtistItem(id: browseId, title: run.text)
         }
 
         if artists.isEmpty {
@@ -304,20 +294,25 @@ extension YouTubeMusic {
         }
 
         let duration = renderer.fixedColumns?.first?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.first?.text.parseTime()
-        let thumbnail = renderer.thumbnail?.getThumbnailUrl() ?? album.thumbnail
+        let thumbnailUrl = renderer.thumbnail?.getThumbnailUrl()
+        let thumbnails: [Thumbnail]
+        if let url = thumbnailUrl, !url.isEmpty {
+            thumbnails = [Thumbnail(url: url)]
+        } else if !album.thumbnails.isEmpty {
+            thumbnails = album.thumbnails
+        } else {
+            thumbnails = []
+        }
         let explicit = renderer.badges?.contains(where: { $0.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE" }) == true
 
         return SongItem(
             id: videoId,
             title: title,
+            thumbnails: thumbnails,
             artists: artists,
-            album: Album(name: album.title, id: album.id),
+            album: album,
             duration: duration,
-            thumbnail: thumbnail,
-            explicit: explicit,
-            libraryAddToken: libraryTokens.addToken,
-            libraryRemoveToken: libraryTokens.removeToken,
-            musicVideoType: renderer.musicVideoType
+            isExplicit: explicit
         )
     }
 
@@ -329,33 +324,64 @@ extension YouTubeMusic {
         let response = try decoder.decode(BrowseResponse.self, from: data)
 
         // Get playlist info from header
-        let header = response.header?.musicDetailHeaderRenderer ?? response.header?.musicResponsiveHeaderRenderer
-        let title = header?.title?.runs?.first?.text ?? ""
-        let subtitle = header?.subtitle?.runs?.first
+        let title: String
+        let subtitle: Run?
+        let thumbnailUrl: String
+
+        if let detailHeader = response.header?.musicDetailHeaderRenderer {
+            title = detailHeader.title?.runs?.first?.text ?? ""
+            subtitle = detailHeader.subtitle?.runs?.first
+            thumbnailUrl = detailHeader.thumbnail?.getThumbnailUrl() ?? ""
+        } else if let responsiveHeader = response.header?.musicResponsiveHeaderRenderer {
+            title = responsiveHeader.title?.runs?.first?.text ?? ""
+            subtitle = responsiveHeader.subtitle?.runs?.first
+            thumbnailUrl = responsiveHeader.thumbnail?.getThumbnailUrl() ?? ""
+        } else {
+            title = ""
+            subtitle = nil
+            thumbnailUrl = ""
+        }
+
+        let thumbnails = thumbnailUrl.isEmpty ? [] : [Thumbnail(url: thumbnailUrl)]
+
+        let author: ArtistItem?
+        if let sub = subtitle, let browseId = sub.navigationEndpoint?.browseEndpoint?.browseId {
+            author = ArtistItem(id: browseId, title: sub.text)
+        } else {
+            author = nil
+        }
 
         let playlist = PlaylistItem(
             id: "", // Will be filled from request
             title: title,
-            author: subtitle != nil ? Artist(name: subtitle!.text, id: subtitle!.navigationEndpoint?.browseEndpoint?.browseId) : nil,
-            songCountText: "",
-            thumbnail: header?.thumbnail?.getThumbnailUrl() ?? "",
-            playEndpoint: nil,
-            shuffleEndpoint: nil,
-            radioEndpoint: nil
+            thumbnails: thumbnails,
+            author: author
         )
 
         // Get songs
         let tabs = response.contents?.singleColumnBrowseResultsRenderer?.tabs ?? response.contents?.twoColumnBrowseResultsRenderer?.tabs
-        let shelfRenderer = tabs?.first?.tabRenderer?.content?.sectionListRenderer?.contents?.first?.musicShelfRenderer ??
-            tabs?.first?.tabRenderer?.content?.sectionListRenderer?.contents?.first?.musicPlaylistShelfRenderer
 
-        let songs = shelfRenderer?.contents?.compactMap { content -> SongItem? in
-            guard let renderer = content.musicResponsiveListItemRenderer else { return nil }
-            return parseSongItem(renderer, secondaryLine: renderer.flexColumns[safe: 1]?
-                .musicResponsiveListItemFlexColumnRenderer?.text?.runs?.splitBySeparator())
-        } ?? []
+        let musicShelfRenderer = tabs?.first?.tabRenderer?.content?.sectionListRenderer?.contents?.first?.musicShelfRenderer
+        let playlistShelfRenderer = tabs?.first?.tabRenderer?.content?.sectionListRenderer?.contents?.first?.musicPlaylistShelfRenderer
 
-        let continuation = shelfRenderer?.continuations?.first?.token
+        var songs: [SongItem] = []
+        var continuation: String?
+
+        if let musicShelf = musicShelfRenderer {
+            songs = musicShelf.contents?.compactMap { content -> SongItem? in
+                guard let renderer = content.musicResponsiveListItemRenderer else { return nil }
+                return parseSongItem(renderer, secondaryLine: renderer.flexColumns[safe: 1]?
+                    .musicResponsiveListItemFlexColumnRenderer?.text?.runs?.splitBySeparator())
+            } ?? []
+            continuation = musicShelf.continuations?.first?.token
+        } else if let playlistShelf = playlistShelfRenderer {
+            songs = playlistShelf.contents?.compactMap { content -> SongItem? in
+                guard let renderer = content.musicResponsiveListItemRenderer else { return nil }
+                return parseSongItem(renderer, secondaryLine: renderer.flexColumns[safe: 1]?
+                    .musicResponsiveListItemFlexColumnRenderer?.text?.runs?.splitBySeparator())
+            } ?? []
+            continuation = playlistShelf.continuations?.first?.token
+        }
 
         return PlaylistPage(playlist: playlist, songs: songs, continuation: continuation)
     }

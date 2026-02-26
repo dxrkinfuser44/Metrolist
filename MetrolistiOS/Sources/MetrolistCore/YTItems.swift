@@ -118,6 +118,46 @@ public struct PlaylistItem: YTItem {
     }
 }
 
+public struct PodcastItem: YTItem {
+    public let id: String
+    public let title: String
+    public let thumbnails: [Thumbnail]
+    public let subtitle: String?
+    public var author: ArtistItem?
+
+    public init(
+        id: String, title: String, thumbnails: [Thumbnail] = [],
+        subtitle: String? = nil, author: ArtistItem? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.thumbnails = thumbnails
+        self.subtitle = subtitle
+        self.author = author
+    }
+}
+
+public struct EpisodeItem: YTItem {
+    public let id: String
+    public let title: String
+    public let thumbnails: [Thumbnail]
+    public let subtitle: String?
+    public var podcast: PodcastItem?
+    public var duration: Int?
+
+    public init(
+        id: String, title: String, thumbnails: [Thumbnail] = [],
+        subtitle: String? = nil, podcast: PodcastItem? = nil, duration: Int? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.thumbnails = thumbnails
+        self.subtitle = subtitle
+        self.podcast = podcast
+        self.duration = duration
+    }
+}
+
 // MARK: - Browse Endpoint
 
 public struct BrowseEndpoint: Sendable {
