@@ -2,6 +2,8 @@
 import SwiftUI
 import NukeUI
 import MetrolistCore
+import MetrolistNetworking
+import MetrolistPersistence
 
 // MARK: - Album Detail Screen
 
@@ -106,7 +108,7 @@ public struct AlbumDetailScreen: View {
     @ViewBuilder
     private func albumHeader(_ album: AlbumPage) -> some View {
         VStack(spacing: 12) {
-            if let url = URL(string: album.thumbnailUrl ?? "") {
+            if let thumbnail = album.album.thumbnails.first, let url = URL(string: thumbnail.url) {
                 LazyImage(url: url) { state in
                     if let image = state.image {
                         image
@@ -122,15 +124,15 @@ public struct AlbumDetailScreen: View {
                 .shadow(radius: 10, y: 4)
             }
 
-            Text(album.title)
+            Text(album.album.title)
                 .font(.title2.weight(.bold))
                 .multilineTextAlignment(.center)
 
-            Text(album.artists.map(\.name).joined(separator: ", "))
+            Text(album.album.artists.map(\.title).joined(separator: ", "))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if let year = album.year {
+            if let year = album.album.year {
                 Text(String(year))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
@@ -233,7 +235,7 @@ public struct ArtistDetailScreen: View {
     @ViewBuilder
     private func artistHeader(_ artist: ArtistPage) -> some View {
         VStack(spacing: 12) {
-            if let url = URL(string: artist.thumbnailUrl ?? "") {
+            if let thumbnail = artist.artist.thumbnails.first, let url = URL(string: thumbnail.url) {
                 LazyImage(url: url) { state in
                     if let image = state.image {
                         image.resizable().aspectRatio(contentMode: .fill)
@@ -246,7 +248,7 @@ public struct ArtistDetailScreen: View {
                 .shadow(radius: 10, y: 4)
             }
 
-            Text(artist.name)
+            Text(artist.artist.title)
                 .font(.title.weight(.bold))
 
             HStack(spacing: 16) {

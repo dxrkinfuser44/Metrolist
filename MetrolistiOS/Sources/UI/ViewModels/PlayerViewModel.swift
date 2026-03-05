@@ -9,6 +9,7 @@ import MetrolistPlayback
 /// Central ViewModel coordinating playback, now-playing UI, lyrics,
 /// and animated artwork display.
 @Observable
+@MainActor
 public final class PlayerViewModel {
     // Player service binding
     public let playerService: AudioPlayerService
@@ -43,7 +44,7 @@ public final class PlayerViewModel {
         nowPlayingManager: NowPlayingManager,
         lyricsHelper: LyricsHelper = LyricsHelper(),
         artworkFetcher: AnimatedArtworkFetcher = AnimatedArtworkFetcher(),
-        artworkCache: AnimatedArtworkCacheService = AnimatedArtworkCacheService()
+        artworkCache: AnimatedArtworkCacheService = AnimatedArtworkCacheService.shared
     ) {
         self.playerService = playerService
         self.nowPlayingManager = nowPlayingManager

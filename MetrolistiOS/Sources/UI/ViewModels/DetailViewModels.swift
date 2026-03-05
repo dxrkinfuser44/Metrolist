@@ -208,7 +208,7 @@ public final class StatsViewModel {
 
 @Observable
 public final class SettingsViewModel {
-    public let preferences: UserPreferences
+    public var preferences: UserPreferences
     public var showLoginSheet = false
     public var showBackupSheet = false
     public var showAboutSheet = false

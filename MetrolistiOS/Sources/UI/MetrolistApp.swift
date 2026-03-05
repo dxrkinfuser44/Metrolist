@@ -37,7 +37,7 @@ struct MetrolistApp: App {
                         database: database,
                         preferences: preferences
                     )
-                    .tint(.pink)
+                    .tint(Color.pink)
                     .preferredColorScheme(colorScheme)
                 } else if let error = initError {
                     ContentUnavailableView {

@@ -1,6 +1,7 @@
 #if canImport(SwiftUI)
 import SwiftUI
 import MetrolistCore
+import MetrolistPersistence
 
 // MARK: - Library Screen
 
