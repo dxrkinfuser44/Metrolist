@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import os
 import MetrolistNetworking
@@ -36,7 +37,7 @@ struct MetrolistApp: App {
                         database: database,
                         preferences: preferences
                     )
-                    .tint(.pink)
+                    .tint(Color.pink)
                     .preferredColorScheme(colorScheme)
                 } else if let error = initError {
                     ContentUnavailableView {
@@ -114,3 +115,5 @@ enum PlayerError: Error, LocalizedError {
         }
     }
 }
+
+#endif

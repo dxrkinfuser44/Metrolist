@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import AVKit
 import NukeUI
@@ -183,7 +184,7 @@ public struct PlayerScreen: View {
             } label: {
                 Image(systemName: "shuffle")
                     .font(.title3)
-                    .foregroundStyle(viewModel.shuffleEnabled ? .accent : .white.opacity(0.6))
+                    .foregroundStyle(viewModel.shuffleEnabled ? Color.pink : .white.opacity(0.6))
             }
 
             // Previous
@@ -211,7 +212,7 @@ public struct PlayerScreen: View {
             Button(action: viewModel.cycleRepeatMode) {
                 Image(systemName: repeatIcon)
                     .font(.title3)
-                    .foregroundStyle(viewModel.repeatMode == .off ? .white.opacity(0.6) : .accent)
+                    .foregroundStyle(viewModel.repeatMode == .off ? .white.opacity(0.6) : Color.pink)
             }
         }
     }
@@ -273,34 +274,7 @@ struct QueueSheet: View {
         NavigationStack {
             List {
                 ForEach(Array(viewModel.queue.enumerated()), id: \.element.id) { index, item in
-                    HStack(spacing: 12) {
-                        if index == viewModel.currentIndex {
-                            Image(systemName: "speaker.wave.2.fill")
-                                .foregroundStyle(.accent)
-                                .frame(width: 20)
-                        } else {
-                            Text("\(index + 1)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 20)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.title)
-                                .font(.body)
-                                .lineLimit(1)
-                                .foregroundStyle(index == viewModel.currentIndex ? .accent : .primary)
-
-                            Text(item.artists.map(\.name).joined(separator: ", "))
-                                .font(.caption)
-                                .lineLimit(1)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        viewModel.playerService.skipToIndex(index)
-                    }
+                    queueRow(item: item, index: index)
                 }
                 .onMove { source, destination in
                     viewModel.playerService.moveInQueue(from: source, to: destination)
@@ -324,6 +298,38 @@ struct QueueSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    @ViewBuilder
+    private func queueRow(item: MediaMetadata, index: Int) -> some View {
+        HStack(spacing: 12) {
+            if index == viewModel.currentIndex {
+                Image(systemName: "speaker.wave.2.fill")
+                    .foregroundStyle(Color.pink)
+                    .frame(width: 20)
+            } else {
+                Text("\(index + 1)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.body)
+                    .lineLimit(1)
+                    .foregroundStyle(index == viewModel.currentIndex ? Color.pink : .primary)
+
+                Text(item.artists.map(\.name).joined(separator: ", "))
+                    .font(.caption)
+                    .lineLimit(1)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            viewModel.playerService.skipToIndex(index)
+        }
     }
 }
 
@@ -396,3 +402,5 @@ struct LyricsSheet: View {
         .presentationDetents([.medium, .large])
     }
 }
+
+#endif

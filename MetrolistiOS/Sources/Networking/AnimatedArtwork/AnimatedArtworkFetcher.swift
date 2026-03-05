@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import MetrolistCore
 
 // MARK: - Animated Artwork Fetcher

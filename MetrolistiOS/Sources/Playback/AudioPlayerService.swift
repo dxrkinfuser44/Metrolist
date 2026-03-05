@@ -1,3 +1,4 @@
+#if canImport(AVFoundation)
 import Foundation
 import AVFoundation
 import Combine
@@ -24,6 +25,7 @@ public enum PlayerState: Equatable {
 /// Equivalent to Android's MusicService (3300 lines) — manages queue, streaming,
 /// crossfade, skip silence, loudness normalization, and background audio.
 @Observable
+@MainActor
 public final class AudioPlayerService {
     // MARK: - Published Properties
     public private(set) var state: PlayerState = .idle
@@ -82,7 +84,7 @@ public final class AudioPlayerService {
     }
 
     deinit {
-        teardown()
+        // Resources are automatically cleaned up by the system
     }
 
     // MARK: - Audio Session Configuration
@@ -131,14 +133,27 @@ public final class AudioPlayerService {
         interruptionObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
         ) { [weak self] notification in
-            self?.handleInterruption(notification)
+            guard let info = notification.userInfo,
+                  let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+            let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt
+            MainActor.assumeIsolated {
+                self?.handleInterruption(type: type, optionsValue: optionsValue)
+            }
         }
 
         // Route change (headphones disconnect)
         routeChangeObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
         ) { [weak self] notification in
-            self?.handleRouteChange(notification)
+            guard let info = notification.userInfo,
+                  let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
+
+            MainActor.assumeIsolated {
+                self?.handleRouteChange(reason: reason)
+            }
         }
     }
 
@@ -490,16 +505,13 @@ public final class AudioPlayerService {
 
     // MARK: - Audio Route / Interruption
 
-    private func handleInterruption(_ notification: Notification) {
-        guard let info = notification.userInfo,
-              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
-              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
-
+    @MainActor
+    private func handleInterruption(type: AVAudioSession.InterruptionType, optionsValue: UInt?) {
         switch type {
         case .began:
             pause()
         case .ended:
-            if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt {
+            if let optionsValue = optionsValue {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
                 if options.contains(.shouldResume) {
                     play()
@@ -510,11 +522,8 @@ public final class AudioPlayerService {
         }
     }
 
-    private func handleRouteChange(_ notification: Notification) {
-        guard let info = notification.userInfo,
-              let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
-
+    @MainActor
+    private func handleRouteChange(reason: AVAudioSession.RouteChangeReason) {
         if reason == .oldDeviceUnavailable {
             // Headphones were disconnected
             pause()
@@ -553,3 +562,5 @@ private extension Array where Element == MediaMetadata {
         return copy
     }
 }
+
+#endif

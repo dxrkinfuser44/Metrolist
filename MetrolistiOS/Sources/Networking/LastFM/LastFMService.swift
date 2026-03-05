@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import MetrolistCore
 
 // MARK: - Last.fm Scrobbling Service
@@ -167,7 +170,11 @@ public enum LastFMError: Error, LocalizedError, Sendable {
 
 // MARK: - MD5 Extension
 
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 
 extension String {
     var md5: String {

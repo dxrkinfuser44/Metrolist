@@ -1,6 +1,13 @@
+#if canImport(MediaPlayer)
 import Foundation
 import MediaPlayer
+#if canImport(UIKit)
 import UIKit
+public typealias PlatformImage = UIImage
+#elseif canImport(AppKit)
+import AppKit
+public typealias PlatformImage = NSImage
+#endif
 import MetrolistCore
 
 // MARK: - Now Playing Manager
@@ -13,13 +20,14 @@ import MetrolistCore
 ///   - MPRemoteCommandCenter   → play/pause/skip remote controls
 ///   - MPMediaItemArtwork      → static artwork for Now Playing info
 @Observable
+@MainActor
 public final class NowPlayingManager {
     private let commandCenter = MPRemoteCommandCenter.shared()
     private let infoCenter = MPNowPlayingInfoCenter.default()
     private weak var playerService: AudioPlayerService?
 
     /// Currently displayed artwork. Used for lock screen static image.
-    private var currentArtworkImage: UIImage?
+    private var currentArtworkImage: PlatformImage?
 
     public init() {}
 
@@ -79,30 +87,42 @@ public final class NowPlayingManager {
     /// Downloads asynchronously from the thumbnail URL.
     public func updateArtwork(from url: URL?) async {
         guard let url else {
-            currentArtworkImage = nil
+            await MainActor.run { self.currentArtworkImage = nil }
             return
         }
 
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            if let image = UIImage(data: data) {
-                await MainActor.run {
-                    self.currentArtworkImage = image
-                    // Re-push now playing info with new artwork
-                    if var info = self.infoCenter.nowPlayingInfo {
-                        let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-                        info[MPMediaItemPropertyArtwork] = artwork
-                        self.infoCenter.nowPlayingInfo = info
-                    }
+#if canImport(UIKit)
+            guard let image = UIImage(data: data) else { return }
+            await MainActor.run {
+                self.currentArtworkImage = image
+                if var info = self.infoCenter.nowPlayingInfo {
+                    let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+                    info[MPMediaItemPropertyArtwork] = artwork
+                    self.infoCenter.nowPlayingInfo = info
                 }
             }
+#elseif canImport(AppKit)
+            guard let nsImage = NSImage(data: data) else { return }
+            let size = nsImage.size
+            await MainActor.run {
+                self.currentArtworkImage = nsImage
+                if var info = self.infoCenter.nowPlayingInfo {
+                    let artwork = MPMediaItemArtwork(boundsSize: size) { _ in nsImage }
+                    info[MPMediaItemPropertyArtwork] = artwork
+                    self.infoCenter.nowPlayingInfo = info
+                }
+            }
+#endif
         } catch {
-            MetrolistLogger.playback.error("Failed to download artwork: \(error)")
+            // Log locally without capturing self across actor boundary
+            print("[NowPlayingManager] Failed to download artwork: \(error)")
         }
     }
 
     /// Provide a pre-loaded UIImage for the artwork (e.g. from cache).
-    public func setArtwork(_ image: UIImage?) {
+    public func setArtwork(_ image: PlatformImage?) {
         currentArtworkImage = image
     }
 
@@ -152,23 +172,26 @@ public final class NowPlayingManager {
             return .success
         }
 
-        // Repeat mode toggle via bookmark command (a common pattern for 3rd-party players)
-        commandCenter.repeatCommand.isEnabled = true
-        commandCenter.repeatCommand.addTarget { [weak self] _ in
-            guard let player = self?.playerService else { return .commandFailed }
-            switch player.repeatMode {
-            case .off: player.repeatMode = .queue
-            case .queue: player.repeatMode = .one
-            case .one: player.repeatMode = .off
+        // Repeat mode — uses changeRepeatModeCommand with MPChangeRepeatModeCommandEvent
+        commandCenter.changeRepeatModeCommand.isEnabled = true
+        commandCenter.changeRepeatModeCommand.addTarget { [weak self] event in
+            guard let event = event as? MPChangeRepeatModeCommandEvent,
+                  let player = self?.playerService else { return .commandFailed }
+            switch event.repeatType {
+            case .off:   player.repeatMode = .off
+            case .one:   player.repeatMode = .one
+            case .all:   player.repeatMode = .queue
+            @unknown default: break
             }
             return .success
         }
 
-        // Shuffle toggle
-        commandCenter.shuffleCommand.isEnabled = true
-        commandCenter.shuffleCommand.addTarget { [weak self] _ in
-            guard let player = self?.playerService else { return .commandFailed }
-            player.shuffleEnabled.toggle()
+        // Shuffle — uses changeShuffleModeCommand with MPChangeShuffleModeCommandEvent
+        commandCenter.changeShuffleModeCommand.isEnabled = true
+        commandCenter.changeShuffleModeCommand.addTarget { [weak self] event in
+            guard let event = event as? MPChangeShuffleModeCommandEvent,
+                  let player = self?.playerService else { return .commandFailed }
+            player.shuffleEnabled = (event.shuffleType != .off)
             return .success
         }
 
@@ -216,11 +239,14 @@ public final class NowPlayingManager {
         commandCenter.nextTrackCommand.removeTarget(nil)
         commandCenter.previousTrackCommand.removeTarget(nil)
         commandCenter.changePlaybackPositionCommand.removeTarget(nil)
-        commandCenter.repeatCommand.removeTarget(nil)
-        commandCenter.shuffleCommand.removeTarget(nil)
+        commandCenter.changeRepeatModeCommand.removeTarget(nil)
+        commandCenter.changeShuffleModeCommand.removeTarget(nil)
         commandCenter.ratingCommand.removeTarget(nil)
         commandCenter.skipForwardCommand.removeTarget(nil)
         commandCenter.skipBackwardCommand.removeTarget(nil)
         infoCenter.nowPlayingInfo = nil
     }
 }
+
+#endif
+
