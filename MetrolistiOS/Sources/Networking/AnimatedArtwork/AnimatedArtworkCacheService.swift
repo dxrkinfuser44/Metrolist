@@ -1,5 +1,12 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import MetrolistCore
 
 // MARK: - Animated Artwork Cache Service

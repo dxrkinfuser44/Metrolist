@@ -108,3 +108,7 @@ app/src/main/cpp/vibrafp/third_party/fftw-android/
 app/src/main/cpp/vibrafp/third_party/.build-fftw/
 .build-fftw
 app/src/main/cpp/coverart/
+
+# Swift Package Manager build artifacts
+MetrolistiOS/.build/
+MetrolistiOS/.swiftpm/

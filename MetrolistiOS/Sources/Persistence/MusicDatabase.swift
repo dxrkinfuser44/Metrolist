@@ -1,3 +1,4 @@
+#if canImport(SwiftData)
 import Foundation
 import SwiftData
 import MetrolistCore
@@ -326,3 +327,5 @@ public final class MusicDatabase {
         }
     }
 }
+
+#endif
