@@ -426,7 +426,7 @@ public final class AudioPlayerService {
                 case .readyToPlay:
                     self.duration = item.duration.seconds.isNaN ? 0 : item.duration.seconds
                     if self.normalizeLoudness {
-                        self.applyLoudnessNormalization(to: item)
+                        await self.applyLoudnessNormalization(to: item)
                     }
                 case .failed:
                     let message = item.error?.localizedDescription ?? "Unknown playback error"
@@ -446,11 +446,38 @@ public final class AudioPlayerService {
                 self.bufferedTime = range.start.seconds + range.duration.seconds
             }
         }
+
+        // Observe timeControlStatus (preferred over raw rate) so state stays in sync
+        // with external pause/resume events — e.g. AirPlay, Siri, phone calls.
+        // Unlike rate, timeControlStatus distinguishes buffering from intentional pause,
+        // preventing spurious .paused state during seeks or stall recovery.
+        rateObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] playerRef, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                guard self.playbackGeneration == generation else { return }
+                switch playerRef.timeControlStatus {
+                case .playing:
+                    if self.state != .playing { self.state = .playing }
+                case .paused:
+                    // Only flip to .paused when a track is actually loaded; ignore the
+                    // idle state where the player is paused with no current item.
+                    if self.state == .playing, playerRef.currentItem != nil {
+                        self.state = .paused
+                    }
+                case .waitingToPlayAtSpecifiedRate:
+                    break // buffering — do not change UI state
+                @unknown default:
+                    break
+                }
+            }
+        }
     }
 
-    private func applyLoudnessNormalization(to item: AVPlayerItem) {
-        // AVAudioMix-based volume adjustment for loudness normalization
-        guard let track = item.asset.tracks(withMediaType: .audio).first else { return }
+    private func applyLoudnessNormalization(to item: AVPlayerItem) async {
+        // AVAudioMix-based volume adjustment for loudness normalization.
+        // Uses the async load API (iOS 15+) to avoid blocking the calling thread.
+        guard let tracks = try? await item.asset.load(.tracks),
+              let track = tracks.first(where: { $0.mediaType == .audio }) else { return }
 
         let params = AVMutableAudioMixInputParameters(track: track)
         let targetGain = pow(10, loudnessBaseGain / 20.0)
@@ -542,22 +569,43 @@ public final class AudioPlayerService {
                 try Task.checkCancellation()
                 guard crossfadeGeneration == generation else { return }
 
-                // Swap: crossfade player becomes the main player
+                // Swap: crossfade player becomes the main player.
+                // Capture references while cfPlayer is still alive (crossfadePlayer
+                // property will be nilled out below, but the local `cfPlayer` keeps a
+                // strong reference).
+                let handoffItem = cfPlayer.currentItem
+                let handoffTime = cfPlayer.currentTime()
+                cfPlayer.pause()
                 player.pause()
                 currentIndex = nextIdx
                 currentItem = nextItem
                 crossfadePlayer = nil
 
-                // Re-resolve for the main player
-                let asset = AVURLAsset(url: url)
-                let item = AVPlayerItem(asset: asset)
-                if skipSilence {
-                    item.audioTimePitchAlgorithm = .timeDomain
+                if let handoffItem {
+                    // Transfer the already-loaded AVPlayerItem to avoid re-requesting
+                    // the stream URL.  Explicitly detach from the crossfade player
+                    // first so it can be safely adopted by the main AVQueuePlayer.
+                    cfPlayer.replaceCurrentItem(with: nil)
+                    if skipSilence {
+                        handoffItem.audioTimePitchAlgorithm = .timeDomain
+                    }
+                    observePlayerItem(handoffItem)
+                    player.replaceCurrentItem(with: handoffItem)
+                    player.volume = 1.0
+                    player.play()
+                } else {
+                    // Fallback: create a fresh item and seek to the handoff position.
+                    let asset = AVURLAsset(url: url)
+                    let newItem = AVPlayerItem(asset: asset)
+                    if skipSilence {
+                        newItem.audioTimePitchAlgorithm = .timeDomain
+                    }
+                    observePlayerItem(newItem)
+                    player.replaceCurrentItem(with: newItem)
+                    player.volume = 1.0
+                    await player.seek(to: handoffTime)
+                    player.play()
                 }
-                observePlayerItem(item)
-                player.replaceCurrentItem(with: item)
-                player.volume = 1.0
-                player.play()
                 state = .playing
             } catch is CancellationError {
                 crossfadePlayer?.pause()
@@ -625,9 +673,11 @@ public final class AudioPlayerService {
         statusObservation?.invalidate()
         durationObservation?.invalidate()
         bufferObservation?.invalidate()
+        rateObservation?.invalidate()
         statusObservation = nil
         durationObservation = nil
         bufferObservation = nil
+        rateObservation = nil
 
         if let obs = itemDidEndObserver { NotificationCenter.default.removeObserver(obs) }
         if let obs = interruptionObserver { NotificationCenter.default.removeObserver(obs) }

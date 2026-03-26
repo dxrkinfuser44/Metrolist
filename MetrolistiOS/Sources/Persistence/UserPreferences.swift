@@ -1,6 +1,5 @@
-#if canImport(Combine)
 import Foundation
-import Combine
+import Observation
 
 // Add enums for AudioQuality and DarkMode used by preferences
 public enum AudioQuality: String, CaseIterable, Codable, Sendable {
@@ -19,9 +18,10 @@ public enum DarkMode: String, Codable, Sendable {
 
 /// Central preferences store equivalent to Android's DataStore.
 /// Uses @AppStorage-compatible UserDefaults under the hood, organized by category.
-/// Publishes changes via Combine for reactive UI updates.
+/// Reactive UI updates are driven by the Observation framework.
+@Observable
 @MainActor
-public final class UserPreferences: ObservableObject {
+public final class UserPreferences {
     public static let shared = UserPreferences()
 
     private let defaults: UserDefaults
@@ -155,147 +155,147 @@ public final class UserPreferences: ObservableObject {
     // initialized before any method is called in init(). loadStoredValues() will
     // immediately overwrite these with the persisted (or registered-default) values.
 
-    @Published public var audioQuality: AudioQuality = .auto {
+    public var audioQuality: AudioQuality = .auto {
         didSet { defaults.set(audioQuality.rawValue, forKey: Keys.audioQuality) }
     }
 
-    @Published public var persistentQueue: Bool = true {
+    public var persistentQueue: Bool = true {
         didSet { defaults.set(persistentQueue, forKey: Keys.persistentQueue) }
     }
 
-    @Published public var skipSilence: Bool = false {
+    public var skipSilence: Bool = false {
         didSet { defaults.set(skipSilence, forKey: Keys.skipSilence) }
     }
 
-    @Published public var normalizeLoudness: Bool = true {
+    public var normalizeLoudness: Bool = true {
         didSet { defaults.set(normalizeLoudness, forKey: Keys.normalizeLoudness) }
     }
 
-    @Published public var autoLoadMore: Bool = true {
+    public var autoLoadMore: Bool = true {
         didSet { defaults.set(autoLoadMore, forKey: Keys.autoLoadMore) }
     }
 
-    @Published public var autoSkipNextOnError: Bool = false {
+    public var autoSkipNextOnError: Bool = false {
         didSet { defaults.set(autoSkipNextOnError, forKey: Keys.autoSkipNextOnError) }
     }
 
-    @Published public var enableLoudnessNormalization: Bool = true {
+    public var enableLoudnessNormalization: Bool = true {
         didSet { defaults.set(enableLoudnessNormalization, forKey: Keys.enableLoudnessNormalization) }
     }
 
-    @Published public var loudnessBaseGain: Double = 5.0 {
+    public var loudnessBaseGain: Double = 5.0 {
         didSet { defaults.set(loudnessBaseGain, forKey: Keys.loudnessBaseGain) }
     }
 
-    @Published public var crossfadeDuration: Double = 0.0 {
+    public var crossfadeDuration: Double = 0.0 {
         didSet { defaults.set(crossfadeDuration, forKey: Keys.crossfadeDuration) }
     }
 
-    @Published public var pauseOnHeadphonesDisconnect: Bool = true {
+    public var pauseOnHeadphonesDisconnect: Bool = true {
         didSet { defaults.set(pauseOnHeadphonesDisconnect, forKey: Keys.pauseOnHeadphonesDisconnect) }
     }
 
-    @Published public var sleepTimerMinutes: Int = -1 {
+    public var sleepTimerMinutes: Int = -1 {
         didSet { defaults.set(sleepTimerMinutes, forKey: Keys.sleepTimerMinutes) }
     }
 
     // MARK: - UI Settings
 
-    @Published public var darkMode: DarkMode = .system {
+    public var darkMode: DarkMode = .system {
         didSet { defaults.set(darkMode.rawValue, forKey: Keys.darkMode) }
     }
 
-    @Published public var dynamicTheme: Bool = true {
+    public var dynamicTheme: Bool = true {
         didSet { defaults.set(dynamicTheme, forKey: Keys.dynamicTheme) }
     }
 
-    @Published public var enableSquigglySlider: Bool = true {
+    public var enableSquigglySlider: Bool = true {
         didSet { defaults.set(enableSquigglySlider, forKey: Keys.enableSquigglySlider) }
     }
 
-    @Published public var swipeThumbnailToShowLyricsOrQueue: Bool = true {
+    public var swipeThumbnailToShowLyricsOrQueue: Bool = true {
         didSet { defaults.set(swipeThumbnailToShowLyricsOrQueue, forKey: Keys.swipeThumbnailToShowLyricsOrQueue) }
     }
 
-    @Published public var showLikeAndDislikeButtons: Bool = true {
+    public var showLikeAndDislikeButtons: Bool = true {
         didSet { defaults.set(showLikeAndDislikeButtons, forKey: Keys.showLikeAndDislikeButtons) }
     }
 
-    @Published public var playerBackgroundStyle: String = "DEFAULT" {
+    public var playerBackgroundStyle: String = "DEFAULT" {
         didSet { defaults.set(playerBackgroundStyle, forKey: Keys.playerBackgroundStyle) }
     }
 
-    @Published public var showNavigationLabels: Bool = true {
+    public var showNavigationLabels: Bool = true {
         didSet { defaults.set(showNavigationLabels, forKey: Keys.showNavigationLabels) }
     }
 
-    @Published public var liquidGlassEnabled: Bool = true {
+    public var liquidGlassEnabled: Bool = true {
         didSet { defaults.set(liquidGlassEnabled, forKey: Keys.liquidGlassEnabled) }
     }
 
     // MARK: - Lyrics Settings
 
-    @Published public var enableLyrics: Bool = true {
+    public var enableLyrics: Bool = true {
         didSet { defaults.set(enableLyrics, forKey: Keys.enableLyrics) }
     }
 
-    @Published public var preferSyncedLyrics: Bool = true {
+    public var preferSyncedLyrics: Bool = true {
         didSet { defaults.set(preferSyncedLyrics, forKey: Keys.preferSyncedLyrics) }
     }
 
-    @Published public var enableKugou: Bool = true {
+    public var enableKugou: Bool = true {
         didSet { defaults.set(enableKugou, forKey: Keys.enableKugou) }
     }
 
-    @Published public var romanizeLyrics: Bool = false {
+    public var romanizeLyrics: Bool = false {
         didSet { defaults.set(romanizeLyrics, forKey: Keys.romanizeLyrics) }
     }
 
     // MARK: - Proxy Settings
 
-    @Published public var proxyEnabled: Bool = false {
+    public var proxyEnabled: Bool = false {
         didSet { defaults.set(proxyEnabled, forKey: Keys.proxyEnabled) }
     }
 
-    @Published public var proxyUrl: String = "" {
+    public var proxyUrl: String = "" {
         didSet { defaults.set(proxyUrl, forKey: Keys.proxyUrl) }
     }
 
     // MARK: - Last.fm Settings
 
-    @Published public var enableLastFm: Bool = false {
+    public var enableLastFm: Bool = false {
         didSet { defaults.set(enableLastFm, forKey: Keys.enableLastFm) }
     }
 
-    @Published public var lastFmUsername: String = "" {
+    public var lastFmUsername: String = "" {
         didSet { defaults.set(lastFmUsername, forKey: Keys.lastFmUsername) }
     }
 
-    @Published public var lastFmSessionKey: String = "" {
+    public var lastFmSessionKey: String = "" {
         didSet { defaults.set(lastFmSessionKey, forKey: Keys.lastFmSessionKey) }
     }
 
-    @Published public var scrobbleEnabled: Bool = false {
+    public var scrobbleEnabled: Bool = false {
         didSet { defaults.set(scrobbleEnabled, forKey: Keys.scrobbleEnabled) }
     }
 
     // MARK: - Social Settings
 
-    @Published public var enableDiscordRPC: Bool = false {
+    public var enableDiscordRPC: Bool = false {
         didSet { defaults.set(enableDiscordRPC, forKey: Keys.enableDiscordRPC) }
     }
 
-    @Published public var listenTogetherEnabled: Bool = false {
+    public var listenTogetherEnabled: Bool = false {
         didSet { defaults.set(listenTogetherEnabled, forKey: Keys.listenTogetherEnabled) }
     }
 
     // MARK: - Locale Settings
 
-    @Published public var contentLanguage: String = "en" {
+    public var contentLanguage: String = "en" {
         didSet { defaults.set(contentLanguage, forKey: Keys.contentLanguage) }
     }
 
-    @Published public var contentCountry: String = "US" {
+    public var contentCountry: String = "US" {
         didSet { defaults.set(contentCountry, forKey: Keys.contentCountry) }
     }
 
@@ -384,5 +384,3 @@ public final class UserPreferences: ObservableObject {
         contentCountry = defaults.string(forKey: Keys.contentCountry) ?? "US"
     }
 }
-
-#endif
