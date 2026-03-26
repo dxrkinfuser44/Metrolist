@@ -126,7 +126,11 @@ public final class LibraryPlaylistsViewModel {
         let playlist = Playlist(name: name)
         let model = PlaylistModel(id: playlist.id, name: name)
         database.modelContext.insert(model)
-        try? database.modelContext.save()
+        do {
+            try database.modelContext.save()
+        } catch {
+            MetrolistLogger.database.error("Create playlist failed: \(error.localizedDescription)")
+        }
         loadPlaylists()
     }
 }

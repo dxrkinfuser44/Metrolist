@@ -66,7 +66,7 @@ struct MetrolistApp: App {
             // Configure stream resolver
             let innerAuth = InnerTubeAuth()
             let ytMusic = YouTubeMusic(auth: innerAuth)
-            playerService.setStreamResolver { [preferences, ytMusic] videoId in
+            playerService.setStreamResolver { [ytMusic] videoId in
                 // Call the player API which returns a Result<PlayerResponse, Error>
                 let result = await ytMusic.player(videoId: videoId)
                 let response = try result.get()

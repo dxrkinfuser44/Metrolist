@@ -94,7 +94,10 @@ public final class NowPlayingManager {
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
 #if canImport(UIKit)
-            guard let image = UIImage(data: data) else { return }
+            let image = await Task.detached(priority: .utility) {
+                UIImage(data: data)
+            }.value
+            guard let image else { return }
             await MainActor.run {
                 self.currentArtworkImage = image
                 if var info = self.infoCenter.nowPlayingInfo {
@@ -104,7 +107,10 @@ public final class NowPlayingManager {
                 }
             }
 #elseif canImport(AppKit)
-            guard let nsImage = NSImage(data: data) else { return }
+            let nsImage = await Task.detached(priority: .utility) {
+                NSImage(data: data)
+            }.value
+            guard let nsImage else { return }
             let size = nsImage.size
             await MainActor.run {
                 self.currentArtworkImage = nsImage
@@ -116,8 +122,7 @@ public final class NowPlayingManager {
             }
 #endif
         } catch {
-            // Log locally without capturing self across actor boundary
-            print("[NowPlayingManager] Failed to download artwork: \(error)")
+            MetrolistLogger.playback.error("Failed to download artwork: \(error.localizedDescription)")
         }
     }
 
@@ -249,4 +254,3 @@ public final class NowPlayingManager {
 }
 
 #endif
-

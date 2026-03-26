@@ -106,6 +106,7 @@ public final class PlayerViewModel {
     @MainActor
     public func onTrackChanged() async {
         guard let item = currentItem else { return }
+        let trackID = item.id
 
         // Update Now Playing info
         nowPlayingManager.updateNowPlayingInfo(
@@ -118,10 +119,12 @@ public final class PlayerViewModel {
         // Load artwork for lock screen
         if let urlStr = item.thumbnailUrl, let url = URL(string: urlStr) {
             await nowPlayingManager.updateArtwork(from: url)
+            guard shouldApplyUpdates(for: trackID) else { return }
         }
 
         // Load lyrics
         await loadLyrics(for: item)
+        guard shouldApplyUpdates(for: trackID) else { return }
 
         // Load animated artwork
         await loadAnimatedArtwork(for: item)
@@ -131,23 +134,29 @@ public final class PlayerViewModel {
 
     @MainActor
     private func loadLyrics(for item: MediaMetadata) async {
+        let trackID = item.id
         isLoadingLyrics = true
         currentLyrics = nil
         syncedLyrics = []
         currentLyricIndex = 0
+        lyricsProvider = nil
+        defer {
+            if shouldApplyUpdates(for: trackID) {
+                isLoadingLyrics = false
+            }
+        }
 
         let artistName = item.artists.first?.name ?? ""
         if let (lyrics, provider) = await lyricsHelper.getLyrics(
             title: item.title, artist: artistName, duration: Int(duration)
         ) {
+            guard shouldApplyUpdates(for: trackID) else { return }
             self.currentLyrics = lyrics
             self.lyricsProvider = provider
             self.syncedLyrics = parseSyncedLyrics(lyrics)
-        } else {
+        } else if shouldApplyUpdates(for: trackID) {
             MetrolistLogger.lyrics.error("Failed to load lyrics for: \(item.title)")
         }
-
-        isLoadingLyrics = false
     }
 
     /// Updates the current highlighted lyric line based on playback position.
@@ -177,15 +186,20 @@ public final class PlayerViewModel {
 
     @MainActor
     private func loadAnimatedArtwork(for item: MediaMetadata) async {
+        let trackID = item.id
         isLoadingAnimatedArtwork = true
         animatedArtworkURL = nil
+        defer {
+            if shouldApplyUpdates(for: trackID) {
+                isLoadingAnimatedArtwork = false
+            }
+        }
 
         // Search Apple Music for the track
         let query = "\(item.title) \(item.artists.first?.name ?? "")"
         let searchURL = "https://music.apple.com/search?term=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
 
         guard let url = URL(string: searchURL) else {
-            isLoadingAnimatedArtwork = false
             return
         }
 
@@ -193,22 +207,29 @@ public final class PlayerViewModel {
             let hasCached = await artworkCache.hasCachedArtwork(for: searchURL)
             if hasCached {
                 let cachedURL = try await artworkCache.getOrDownload(albumId: searchURL, videoURL: url)
+                guard shouldApplyUpdates(for: trackID) else { return }
                 self.animatedArtworkURL = cachedURL
             } else {
                 let result = await artworkFetcher.fetchAnimatedArtworkURL(from: url)
+                guard shouldApplyUpdates(for: trackID) else { return }
                 if case .success(let videoURL) = result {
                     let localURL = try await artworkCache.getOrDownload(albumId: searchURL, videoURL: videoURL)
+                    guard shouldApplyUpdates(for: trackID) else { return }
                     self.animatedArtworkURL = localURL
                 }
             }
         } catch {
-            MetrolistLogger.animatedArtwork.error("Animated artwork fetch failed: \(error)")
+            if shouldApplyUpdates(for: trackID) {
+                MetrolistLogger.animatedArtwork.error("Animated artwork fetch failed: \(error)")
+            }
         }
-
-        isLoadingAnimatedArtwork = false
     }
 
     // MARK: - Helpers
+
+    private func shouldApplyUpdates(for trackID: String) -> Bool {
+        !Task.isCancelled && currentItem?.id == trackID
+    }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {
         guard seconds.isFinite, seconds >= 0 else { return "0:00" }

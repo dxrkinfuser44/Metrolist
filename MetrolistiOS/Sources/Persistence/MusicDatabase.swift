@@ -25,12 +25,45 @@ public final class MusicDatabase {
         self.modelContext = modelContainer.mainContext
     }
 
+    private func fetchFirst<Model: PersistentModel>(
+        _ descriptor: FetchDescriptor<Model>,
+        operation: String
+    ) -> Model? {
+        do {
+            return try modelContext.fetch(descriptor).first
+        } catch {
+            MetrolistLogger.database.error("\(operation) failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func fetchAll<Model: PersistentModel>(
+        _ descriptor: FetchDescriptor<Model>,
+        operation: String
+    ) -> [Model] {
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            MetrolistLogger.database.error("\(operation) failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    private func saveChanges(operation: String) {
+        guard modelContext.hasChanges else { return }
+        do {
+            try modelContext.save()
+        } catch {
+            MetrolistLogger.database.error("\(operation) failed: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Song CRUD
 
     public func song(id: String) -> SongModel? {
         let predicate = #Predicate<SongModel> { $0.id == id }
         let descriptor = FetchDescriptor(predicate: predicate)
-        return try? modelContext.fetch(descriptor).first
+        return fetchFirst(descriptor, operation: "Fetch song")
     }
 
     public func upsertSong(_ entity: Song) {
@@ -63,13 +96,13 @@ public final class MusicDatabase {
             )
             modelContext.insert(model)
         }
-        try? modelContext.save()
+        saveChanges(operation: "Upsert song")
     }
 
     public func deleteSong(id: String) {
         guard let model = song(id: id) else { return }
         modelContext.delete(model)
-        try? modelContext.save()
+        saveChanges(operation: "Delete song")
     }
 
     public func allSongs(filter: SongFilter? = nil, sortBy: SongSortType = .createDate, ascending: Bool = false) -> [SongModel] {
@@ -99,14 +132,14 @@ public final class MusicDatabase {
             descriptor.sortBy = [SortDescriptor(\SongModel.date, order: ascending ? .forward : .reverse)]
         }
 
-        return (try? modelContext.fetch(descriptor)) ?? []
+        return fetchAll(descriptor, operation: "Fetch songs")
     }
 
     public func toggleLike(songId: String) {
         guard let song = song(id: songId) else { return }
         song.isLiked.toggle()
         song.likedDate = song.isLiked ? .now : nil
-        try? modelContext.save()
+        saveChanges(operation: "Toggle song like")
     }
 
     // MARK: - Artist CRUD
@@ -114,7 +147,7 @@ public final class MusicDatabase {
     public func artist(id: String) -> ArtistModel? {
         let predicate = #Predicate<ArtistModel> { $0.id == id }
         let descriptor = FetchDescriptor(predicate: predicate)
-        return try? modelContext.fetch(descriptor).first
+        return fetchFirst(descriptor, operation: "Fetch artist")
     }
 
     public func upsertArtist(_ entity: Artist) {
@@ -129,7 +162,7 @@ public final class MusicDatabase {
                                     bookmarkedAt: entity.bookmarkedAt, isLocal: entity.isLocal)
             modelContext.insert(model)
         }
-        try? modelContext.save()
+        saveChanges(operation: "Upsert artist")
     }
 
     public func allArtists(filter: ArtistFilter? = nil, sortBy: ArtistSortType = .createDate, ascending: Bool = false) -> [ArtistModel] {
@@ -151,7 +184,7 @@ public final class MusicDatabase {
             descriptor.sortBy = [SortDescriptor(\ArtistModel.lastUpdateTime, order: ascending ? .forward : .reverse)]
         }
 
-        return (try? modelContext.fetch(descriptor)) ?? []
+        return fetchAll(descriptor, operation: "Fetch artists")
     }
 
     // MARK: - Album CRUD
@@ -159,7 +192,7 @@ public final class MusicDatabase {
     public func album(id: String) -> AlbumModel? {
         let predicate = #Predicate<AlbumModel> { $0.id == id }
         let descriptor = FetchDescriptor(predicate: predicate)
-        return try? modelContext.fetch(descriptor).first
+        return fetchFirst(descriptor, operation: "Fetch album")
     }
 
     public func upsertAlbum(_ entity: Album) {
@@ -180,7 +213,7 @@ public final class MusicDatabase {
                                    isLocal: entity.isLocal, isUploaded: entity.isUploaded)
             modelContext.insert(model)
         }
-        try? modelContext.save()
+        saveChanges(operation: "Upsert album")
     }
 
     public func allAlbums(filter: AlbumFilter? = nil, sortBy: AlbumSortType = .createDate, ascending: Bool = false) -> [AlbumModel] {
@@ -206,7 +239,7 @@ public final class MusicDatabase {
             descriptor.sortBy = [SortDescriptor(\AlbumModel.lastUpdateTime, order: ascending ? .forward : .reverse)]
         }
 
-        return (try? modelContext.fetch(descriptor)) ?? []
+        return fetchAll(descriptor, operation: "Fetch albums")
     }
 
     // MARK: - Playlist CRUD
@@ -214,7 +247,7 @@ public final class MusicDatabase {
     public func playlist(id: String) -> PlaylistModel? {
         let predicate = #Predicate<PlaylistModel> { $0.id == id }
         let descriptor = FetchDescriptor(predicate: predicate)
-        return try? modelContext.fetch(descriptor).first
+        return fetchFirst(descriptor, operation: "Fetch playlist")
     }
 
     public func allPlaylists(sortBy: PlaylistSortType = .createDate, ascending: Bool = false) -> [PlaylistModel] {
@@ -227,7 +260,7 @@ public final class MusicDatabase {
             descriptor.sortBy = [SortDescriptor(\PlaylistModel.createdAt, order: ascending ? .forward : .reverse)]
         }
 
-        return (try? modelContext.fetch(descriptor)) ?? []
+        return fetchAll(descriptor, operation: "Fetch playlists")
     }
 
     // MARK: - Lyrics
@@ -235,7 +268,7 @@ public final class MusicDatabase {
     public func lyrics(id: String) -> LyricsModel? {
         let predicate = #Predicate<LyricsModel> { $0.id == id }
         let descriptor = FetchDescriptor(predicate: predicate)
-        return try? modelContext.fetch(descriptor).first
+        return fetchFirst(descriptor, operation: "Fetch lyrics")
     }
 
     public func upsertLyrics(id: String, lyrics: String, provider: String) {
@@ -245,7 +278,7 @@ public final class MusicDatabase {
         } else {
             modelContext.insert(LyricsModel(id: id, lyrics: lyrics, provider: provider))
         }
-        try? modelContext.save()
+        saveChanges(operation: "Upsert lyrics")
     }
 
     // MARK: - Search History
@@ -255,27 +288,26 @@ public final class MusicDatabase {
             sortBy: [SortDescriptor(\SearchHistoryModel.timestamp, order: .reverse)]
         )
         descriptor.fetchLimit = limit
-        return (try? modelContext.fetch(descriptor)) ?? []
+        return fetchAll(descriptor, operation: "Fetch search history")
     }
 
     public func addSearchHistory(query: String) {
         // Remove duplicate if exists
         let predicate = #Predicate<SearchHistoryModel> { $0.query == query }
         let descriptor = FetchDescriptor(predicate: predicate)
-        if let existing = try? modelContext.fetch(descriptor).first {
+        if let existing = fetchFirst(descriptor, operation: "Fetch search history entry") {
             existing.timestamp = .now
         } else {
             modelContext.insert(SearchHistoryModel(query: query))
         }
-        try? modelContext.save()
+        saveChanges(operation: "Upsert search history")
     }
 
     public func clearSearchHistory() {
         let descriptor = FetchDescriptor<SearchHistoryModel>()
-        if let all = try? modelContext.fetch(descriptor) {
-            for item in all { modelContext.delete(item) }
-        }
-        try? modelContext.save()
+        let all = fetchAll(descriptor, operation: "Fetch all search history")
+        for item in all { modelContext.delete(item) }
+        saveChanges(operation: "Clear search history")
     }
 
     // MARK: - Play Events
@@ -288,7 +320,7 @@ public final class MusicDatabase {
         if let song = song(id: songId) {
             song.totalPlayTime += playTime
         }
-        try? modelContext.save()
+        saveChanges(operation: "Record play event")
     }
 
     public func recentEvents(limit: Int = 50) -> [PlayEventModel] {
@@ -296,7 +328,7 @@ public final class MusicDatabase {
             sortBy: [SortDescriptor(\PlayEventModel.timestamp, order: .reverse)]
         )
         descriptor.fetchLimit = limit
-        return (try? modelContext.fetch(descriptor)) ?? []
+        return fetchAll(descriptor, operation: "Fetch recent play events")
     }
 
     // MARK: - Speed Dial
@@ -305,7 +337,7 @@ public final class MusicDatabase {
         let descriptor = FetchDescriptor<SpeedDialItemModel>(
             sortBy: [SortDescriptor(\SpeedDialItemModel.createDate, order: .forward)]
         )
-        return (try? modelContext.fetch(descriptor)) ?? []
+        return fetchAll(descriptor, operation: "Fetch speed dial items")
     }
 
     public func addSpeedDialItem(_ item: SpeedDialItem) {
@@ -315,15 +347,15 @@ public final class MusicDatabase {
             type: item.type.rawValue, isExplicit: item.isExplicit, createDate: item.createDate
         )
         modelContext.insert(model)
-        try? modelContext.save()
+        saveChanges(operation: "Add speed dial item")
     }
 
     public func removeSpeedDialItem(id: String) {
         let predicate = #Predicate<SpeedDialItemModel> { $0.id == id }
         let descriptor = FetchDescriptor(predicate: predicate)
-        if let item = try? modelContext.fetch(descriptor).first {
+        if let item = fetchFirst(descriptor, operation: "Fetch speed dial item") {
             modelContext.delete(item)
-            try? modelContext.save()
+            saveChanges(operation: "Remove speed dial item")
         }
     }
 }

@@ -103,7 +103,7 @@ public struct PlayerScreen: View {
         ZStack {
             // Animated artwork (video) if available
             if let videoURL = viewModel.animatedArtworkURL {
-                VideoPlayer(player: AVPlayer(url: videoURL))
+                AnimatedArtworkPlayerView(url: videoURL)
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .allowsHitTesting(false)
@@ -400,6 +400,24 @@ struct LyricsSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+private struct AnimatedArtworkPlayerView: View {
+    let url: URL
+    @State private var player = AVPlayer()
+
+    var body: some View {
+        VideoPlayer(player: player)
+            .task(id: url) {
+                let item = AVPlayerItem(url: url)
+                player.replaceCurrentItem(with: item)
+                player.play()
+            }
+            .onDisappear {
+                player.pause()
+                player.replaceCurrentItem(with: nil)
+            }
     }
 }
 
