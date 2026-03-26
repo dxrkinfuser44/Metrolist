@@ -1,5 +1,7 @@
+#if canImport(SwiftUI)
 import Foundation
 import MetrolistCore
+import MetrolistNetworking
 
 // MARK: - Home ViewModel
 
@@ -23,8 +25,8 @@ public final class HomeViewModel {
 
     private let ytMusic: YouTubeMusic
 
-    public init(ytMusic: YouTubeMusic = YouTubeMusic()) {
-        self.ytMusic = ytMusic
+    public init(ytMusic: YouTubeMusic? = nil) {
+        self.ytMusic = ytMusic ?? YouTubeMusic(auth: InnerTubeAuth())
     }
 
     @MainActor
@@ -34,11 +36,14 @@ public final class HomeViewModel {
         errorMessage = nil
 
         do {
-            let homePage = try await ytMusic.home()
-            self.quickPicks = homePage.quickPicks
-            self.continuationToken = homePage.continuationToken
+            let homePage = try await ytMusic.home().get()
+            // Derive quick picks from the first section's song items
+            if let firstSection = homePage.sections.first {
+                self.quickPicks = firstSection.items.compactMap { $0 as? SongItem }
+            }
+            self.continuationToken = homePage.continuation
             self.homeSections = homePage.sections.map { section in
-                HomeSection(title: section.title, items: section.items, continuationToken: section.continuationToken)
+                HomeSection(title: section.title ?? "Recommended", items: section.items, continuationToken: nil)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -54,10 +59,10 @@ public final class HomeViewModel {
         isLoading = true
 
         do {
-            let more = try await ytMusic.homeContinuation(token: token)
-            self.continuationToken = more.continuationToken
+            let more = try await ytMusic.home(continuation: token).get()
+            self.continuationToken = more.continuation
             let newSections = more.sections.map { section in
-                HomeSection(title: section.title, items: section.items, continuationToken: section.continuationToken)
+                HomeSection(title: section.title ?? "More", items: section.items, continuationToken: nil)
             }
             self.homeSections.append(contentsOf: newSections)
         } catch {
@@ -67,3 +72,5 @@ public final class HomeViewModel {
         isLoading = false
     }
 }
+
+#endif

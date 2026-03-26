@@ -1,4 +1,6 @@
+#if canImport(SwiftUI)
 import SwiftUI
+import MetrolistPersistence
 
 // MARK: - Route Definitions
 
@@ -211,3 +213,5 @@ public struct MainTabView: View {
         }
     }
 }
+
+#endif

@@ -1,11 +1,15 @@
+#if canImport(SwiftUI)
 import Foundation
 import MetrolistCore
+import MetrolistNetworking
+import MetrolistPlayback
 
 // MARK: - Player ViewModel
 
 /// Central ViewModel coordinating playback, now-playing UI, lyrics,
 /// and animated artwork display.
 @Observable
+@MainActor
 public final class PlayerViewModel {
     // Player service binding
     public let playerService: AudioPlayerService
@@ -40,7 +44,7 @@ public final class PlayerViewModel {
         nowPlayingManager: NowPlayingManager,
         lyricsHelper: LyricsHelper = LyricsHelper(),
         artworkFetcher: AnimatedArtworkFetcher = AnimatedArtworkFetcher(),
-        artworkCache: AnimatedArtworkCacheService = AnimatedArtworkCacheService()
+        artworkCache: AnimatedArtworkCacheService = AnimatedArtworkCacheService.shared
     ) {
         self.playerService = playerService
         self.nowPlayingManager = nowPlayingManager
@@ -102,6 +106,7 @@ public final class PlayerViewModel {
     @MainActor
     public func onTrackChanged() async {
         guard let item = currentItem else { return }
+        let trackID = item.id
 
         // Update Now Playing info
         nowPlayingManager.updateNowPlayingInfo(
@@ -114,10 +119,12 @@ public final class PlayerViewModel {
         // Load artwork for lock screen
         if let urlStr = item.thumbnailUrl, let url = URL(string: urlStr) {
             await nowPlayingManager.updateArtwork(from: url)
+            guard shouldApplyUpdates(for: trackID) else { return }
         }
 
         // Load lyrics
         await loadLyrics(for: item)
+        guard shouldApplyUpdates(for: trackID) else { return }
 
         // Load animated artwork
         await loadAnimatedArtwork(for: item)
@@ -127,24 +134,29 @@ public final class PlayerViewModel {
 
     @MainActor
     private func loadLyrics(for item: MediaMetadata) async {
+        let trackID = item.id
         isLoadingLyrics = true
         currentLyrics = nil
         syncedLyrics = []
         currentLyricIndex = 0
-
-        do {
-            let artistName = item.artists.first?.name ?? ""
-            let result = try await lyricsHelper.fetchLyrics(
-                title: item.title, artist: artistName, duration: Int(duration)
-            )
-            self.currentLyrics = result.lyrics
-            self.lyricsProvider = result.provider
-            self.syncedLyrics = parseSyncedLyrics(result.lyrics)
-        } catch {
-            MetrolistLogger.lyrics.error("Failed to load lyrics: \(error)")
+        lyricsProvider = nil
+        defer {
+            if shouldApplyUpdates(for: trackID) {
+                isLoadingLyrics = false
+            }
         }
 
-        isLoadingLyrics = false
+        let artistName = item.artists.first?.name ?? ""
+        if let (lyrics, provider) = await lyricsHelper.getLyrics(
+            title: item.title, artist: artistName, duration: Int(duration)
+        ) {
+            guard shouldApplyUpdates(for: trackID) else { return }
+            self.currentLyrics = lyrics
+            self.lyricsProvider = provider
+            self.syncedLyrics = parseSyncedLyrics(lyrics)
+        } else if shouldApplyUpdates(for: trackID) {
+            MetrolistLogger.lyrics.error("Failed to load lyrics for: \(item.title)")
+        }
     }
 
     /// Updates the current highlighted lyric line based on playback position.
@@ -174,29 +186,50 @@ public final class PlayerViewModel {
 
     @MainActor
     private func loadAnimatedArtwork(for item: MediaMetadata) async {
+        let trackID = item.id
         isLoadingAnimatedArtwork = true
         animatedArtworkURL = nil
+        defer {
+            if shouldApplyUpdates(for: trackID) {
+                isLoadingAnimatedArtwork = false
+            }
+        }
 
         // Search Apple Music for the track
         let query = "\(item.title) \(item.artists.first?.name ?? "")"
         let searchURL = "https://music.apple.com/search?term=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
 
-        do {
-            let cachedURL = await artworkCache.cachedArtwork(for: searchURL)
-            if let cachedURL {
-                self.animatedArtworkURL = cachedURL
-            } else if let videoURL = try await artworkFetcher.fetchAnimatedArtwork(for: searchURL) {
-                let localURL = try await artworkCache.cacheArtwork(for: searchURL, from: videoURL)
-                self.animatedArtworkURL = localURL
-            }
-        } catch {
-            MetrolistLogger.animatedArtwork.error("Animated artwork fetch failed: \(error)")
+        guard let url = URL(string: searchURL) else {
+            return
         }
 
-        isLoadingAnimatedArtwork = false
+        do {
+            let hasCached = await artworkCache.hasCachedArtwork(for: searchURL)
+            if hasCached {
+                let cachedURL = try await artworkCache.getOrDownload(albumId: searchURL, videoURL: url)
+                guard shouldApplyUpdates(for: trackID) else { return }
+                self.animatedArtworkURL = cachedURL
+            } else {
+                let result = await artworkFetcher.fetchAnimatedArtworkURL(from: url)
+                guard shouldApplyUpdates(for: trackID) else { return }
+                if case .success(let videoURL) = result {
+                    let localURL = try await artworkCache.getOrDownload(albumId: searchURL, videoURL: videoURL)
+                    guard shouldApplyUpdates(for: trackID) else { return }
+                    self.animatedArtworkURL = localURL
+                }
+            }
+        } catch {
+            if shouldApplyUpdates(for: trackID) {
+                MetrolistLogger.animatedArtwork.error("Animated artwork fetch failed: \(error)")
+            }
+        }
     }
 
     // MARK: - Helpers
+
+    private func shouldApplyUpdates(for trackID: String) -> Bool {
+        !Task.isCancelled && currentItem?.id == trackID
+    }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {
         guard seconds.isFinite, seconds >= 0 else { return "0:00" }
@@ -206,3 +239,5 @@ public final class PlayerViewModel {
         return String(format: "%d:%02d", mins, secs)
     }
 }
+
+#endif

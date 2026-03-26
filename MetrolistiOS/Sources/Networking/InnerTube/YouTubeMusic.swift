@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import MetrolistCore
 
 // MARK: - YouTube Music API Facade
@@ -23,12 +26,12 @@ public actor YouTubeMusic {
     // MARK: - Search
 
     public func searchSuggestions(query: String) async -> Result<SearchSuggestions, Error> {
-        await Result {
+        do {
             let data = try await transport.getSearchSuggestions(input: query)
             // Parse suggestions from the nested InnerTube response
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             var queries: [String] = []
-            var items: [any YTItem] = []
+            let items: [any YTItem] = []
 
             if let contents = json?["contents"] as? [[String: Any]] {
                 for content in contents {
@@ -45,124 +48,168 @@ public actor YouTubeMusic {
                 }
             }
 
-            return SearchSuggestions(queries: queries, recommendedItems: items)
+            return .success(SearchSuggestions(queries: queries, recommendedItems: items))
+        } catch {
+            return .failure(error)
         }
     }
 
     public func search(query: String, filter: SearchFilter = .all) async -> Result<SearchResult, Error> {
-        await Result {
+        do {
             let params = filter == .all ? nil : searchFilterParam(for: filter)
             let data = try await transport.search(query: query, params: params)
-            return try parseSearchResponse(data: data)
+            return .success(try parseSearchResponse(data: data))
+        } catch {
+            return .failure(error)
         }
     }
 
     public func searchContinuation(_ continuation: String) async -> Result<SearchResult, Error> {
-        await Result {
+        do {
             let data = try await transport.search(query: nil, params: continuation)
-            return try parseSearchResponse(data: data)
+            return .success(try parseSearchResponse(data: data))
+        } catch {
+            return .failure(error)
         }
     }
 
     // MARK: - Browse
 
     public func album(browseId: String) async -> Result<AlbumPage, Error> {
-        await Result {
+        do {
             let data = try await transport.browse(browseId: browseId)
-            return try parseAlbumPage(data: data)
+            return .success(try parseAlbumPage(data: data))
+        } catch {
+            return .failure(error)
         }
     }
 
     public func artist(browseId: String) async -> Result<ArtistPage, Error> {
-        await Result {
+        do {
             let data = try await transport.browse(browseId: browseId)
-            return try parseArtistPage(data: data)
+            return .success(try parseArtistPage(data: data))
+        } catch {
+            return .failure(error)
         }
     }
 
     public func playlist(playlistId: String) async -> Result<PlaylistPage, Error> {
-        await Result {
+        do {
             let adjustedId = playlistId.hasPrefix("VL") ? playlistId : "VL\(playlistId)"
             let data = try await transport.browse(browseId: adjustedId)
-            return try parsePlaylistPage(data: data)
+            return .success(try parsePlaylistPage(data: data))
+        } catch {
+            return .failure(error)
         }
     }
 
     public func home(continuation: String? = nil) async -> Result<HomePage, Error> {
-        await Result {
+        do {
             let data: Data
             if let continuation {
                 data = try await transport.browse(continuation: continuation)
             } else {
                 data = try await transport.browse(browseId: "FEmusic_home")
             }
-            return try parseHomePage(data: data)
+            return .success(try parseHomePage(data: data))
+        } catch {
+            return .failure(error)
         }
     }
 
     public func explore() async -> Result<ExplorePage, Error> {
-        await Result {
+        do {
             let data = try await transport.browse(browseId: "FEmusic_explore")
-            return try parseExplorePage(data: data)
+            return .success(try parseExplorePage(data: data))
+        } catch {
+            return .failure(error)
         }
     }
 
     // MARK: - Player
 
     public func player(videoId: String, playlistId: String? = nil) async -> Result<PlayerResponse, Error> {
-        await Result {
+        do {
             let data = try await transport.player(videoId: videoId, playlistId: playlistId)
-            return try decoder.decode(PlayerResponse.self, from: data)
+            return .success(try decoder.decode(PlayerResponse.self, from: data))
+        } catch {
+            return .failure(error)
         }
     }
 
     // MARK: - Queue & Next
 
     public func next(videoId: String?, playlistId: String? = nil, continuation: String? = nil) async -> Result<NextResult, Error> {
-        await Result {
+        do {
             let data = try await transport.next(videoId: videoId, playlistId: playlistId, continuation: continuation)
-            return try parseNextResult(data: data)
+            return .success(try parseNextResult(data: data))
+        } catch {
+            return .failure(error)
         }
     }
 
     public func queue(videoIds: [String]? = nil, playlistId: String? = nil) async -> Result<[SongItem], Error> {
-        await Result {
+        do {
             let data = try await transport.getQueue(videoIds: videoIds, playlistId: playlistId)
-            return try parseQueueResponse(data: data)
+            return .success(try parseQueueResponse(data: data))
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    // MARK: - Browse Continuation
+
+    public func browseContinuation(token: String) async -> Result<BrowseContinuationResult, Error> {
+        do {
+            let data = try await transport.browse(continuation: token)
+            let items = try parseBrowseContinuationItems(data: data)
+            return .success(items)
+        } catch {
+            return .failure(error)
         }
     }
 
     // MARK: - Library Actions
 
     public func likeVideo(videoId: String) async -> Result<Void, Error> {
-        await Result {
+        do {
             _ = try await transport.like(videoId: videoId)
+            return .success(())
+        } catch {
+            return .failure(error)
         }
     }
 
     public func unlikeVideo(videoId: String) async -> Result<Void, Error> {
-        await Result {
+        do {
             _ = try await transport.removeLike(videoId: videoId)
+            return .success(())
+        } catch {
+            return .failure(error)
         }
     }
 
     public func createPlaylist(title: String, videoIds: [String]? = nil) async -> Result<String, Error> {
-        await Result {
+        do {
             let data = try await transport.createPlaylist(title: title, videoIds: videoIds)
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             guard let playlistId = json?["playlistId"] as? String else {
                 throw InnerTubeError.decodingError("Missing playlistId in response")
             }
-            return playlistId
+            return .success(playlistId)
+        } catch {
+            return .failure(error)
         }
     }
 
     // MARK: - Account
 
     public func accountInfo() async -> Result<AccountInfo, Error> {
-        await Result {
+        do {
             let data = try await transport.accountMenu()
-            return try parseAccountInfo(data: data)
+            return .success(try parseAccountInfo(data: data))
+        } catch {
+            return .failure(error)
         }
     }
 
@@ -293,6 +340,16 @@ public struct NextResult: Sendable {
     }
 }
 
+public struct BrowseContinuationResult: Sendable {
+    public let items: [any YTItem]
+    public let continuation: String?
+
+    public init(items: [any YTItem] = [], continuation: String? = nil) {
+        self.items = items
+        self.continuation = continuation
+    }
+}
+
 public struct AccountInfo: Sendable {
     public let name: String
     public let email: String?
@@ -416,9 +473,51 @@ extension YouTubeMusic {
     }
 
     private func parseAccountInfo(data: Data) throws -> AccountInfo {
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        _ = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         // Navigate deeply nested response to find account info
         let name = "Unknown"
         return AccountInfo(name: name)
+    }
+
+    private func parseBrowseContinuationItems(data: Data) throws -> BrowseContinuationResult {
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        // Parse continuation response for items and next continuation token
+        var items: [any YTItem] = []
+        var continuation: String?
+
+        if let continuationContents = json?["continuationContents"] as? [String: Any] {
+            if let sectionList = continuationContents["musicPlaylistShelfContinuation"] as? [String: Any] {
+                if let contents = sectionList["contents"] as? [[String: Any]] {
+                    items = contents.compactMap { parseSongRenderer($0) }
+                }
+                if let conts = sectionList["continuations"] as? [[String: Any]],
+                   let next = conts.first?["nextContinuationData"] as? [String: Any] {
+                    continuation = next["continuation"] as? String
+                }
+            }
+        }
+
+        return BrowseContinuationResult(items: items, continuation: continuation)
+    }
+
+    private func parseSongRenderer(_ json: [String: Any]) -> SongItem? {
+        guard let renderer = json["musicResponsiveListItemRenderer"] as? [String: Any] ?? json["playlistPanelVideoRenderer"] as? [String: Any] else {
+            return nil
+        }
+        let videoId = (renderer["playlistItemData"] as? [String: Any])?["videoId"] as? String
+            ?? renderer["videoId"] as? String ?? ""
+        let title = extractText(from: renderer, key: "flexColumns", index: 0) ?? "Unknown"
+        return SongItem(id: videoId, title: title)
+    }
+
+    private func extractText(from renderer: [String: Any], key: String, index: Int) -> String? {
+        guard let columns = renderer[key] as? [[String: Any]],
+              index < columns.count,
+              let textRenderer = columns[index]["musicResponsiveListItemFlexColumnRenderer"] as? [String: Any],
+              let text = textRenderer["text"] as? [String: Any],
+              let runs = text["runs"] as? [[String: Any]] else {
+            return nil
+        }
+        return runs.compactMap { $0["text"] as? String }.joined()
     }
 }

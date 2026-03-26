@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import MetrolistCore
 
@@ -18,7 +19,7 @@ public struct SearchScreen: View {
                     ForEach(viewModel.suggestions, id: \.self) { suggestion in
                         Button {
                             viewModel.query = suggestion
-                            Task { await viewModel.search() }
+                            viewModel.search()
                         } label: {
                             Label(suggestion, systemImage: "magnifyingglass")
                         }
@@ -32,7 +33,7 @@ public struct SearchScreen: View {
                     ForEach(viewModel.searchHistory, id: \.self) { item in
                         Button {
                             viewModel.query = item
-                            Task { await viewModel.search() }
+                            viewModel.search()
                         } label: {
                             Label(item, systemImage: "clock")
                         }
@@ -68,10 +69,10 @@ public struct SearchScreen: View {
         .listStyle(.plain)
         .searchable(text: $viewModel.query, prompt: "Search songs, artists, albums...")
         .onSubmit(of: .search) {
-            Task { await viewModel.search() }
+            viewModel.search()
         }
         .onChange(of: viewModel.query) {
-            Task { await viewModel.fetchSuggestions() }
+            viewModel.fetchSuggestions()
         }
         .navigationTitle("Search")
     }
@@ -122,3 +123,5 @@ private extension SearchFilter {
         }
     }
 }
+
+#endif

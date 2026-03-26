@@ -1,3 +1,4 @@
+#if canImport(AVFoundation)
 import Foundation
 import AVFoundation
 import Combine
@@ -24,6 +25,7 @@ public enum PlayerState: Equatable {
 /// Equivalent to Android's MusicService (3300 lines) — manages queue, streaming,
 /// crossfade, skip silence, loudness normalization, and background audio.
 @Observable
+@MainActor
 public final class AudioPlayerService {
     // MARK: - Published Properties
     public private(set) var state: PlayerState = .idle
@@ -66,6 +68,11 @@ public final class AudioPlayerService {
     private var originalQueue: [MediaMetadata] = []
     private var autoLoadMoreHandler: (() async -> [MediaMetadata])?
     private var resolveStreamURL: ((String) async throws -> URL)?
+    private var playbackTask: Task<Void, Never>?
+    private var crossfadeTask: Task<Void, Never>?
+    private var playbackGeneration = 0
+    private var crossfadeGeneration = 0
+    private var isPreparingCrossfade = false
 
     // Sleep timer
     private var sleepTimerTask: Task<Void, Never>?
@@ -81,7 +88,7 @@ public final class AudioPlayerService {
         setupNotificationObservers()
     }
 
-    deinit {
+    isolated deinit {
         teardown()
     }
 
@@ -102,14 +109,16 @@ public final class AudioPlayerService {
     private func setupTimeObserver() {
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let self else { return }
-            self.currentTime = time.seconds.isNaN ? 0 : time.seconds
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.currentTime = time.seconds.isNaN ? 0 : time.seconds
 
-            // Crossfade trigger
-            if self.crossfadeDuration > 0, self.duration > 0 {
-                let remaining = self.duration - self.currentTime
-                if remaining <= self.crossfadeDuration && remaining > 0 {
-                    self.beginCrossfade()
+                // Crossfade trigger
+                if self.crossfadeDuration > 0, self.duration > 0 {
+                    let remaining = self.duration - self.currentTime
+                    if remaining <= self.crossfadeDuration && remaining > 0 {
+                        self.beginCrossfade()
+                    }
                 }
             }
         }
@@ -121,9 +130,13 @@ public final class AudioPlayerService {
         // Track ended
         itemDidEndObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: nil, queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
+            let endedItem = notification.object as? AVPlayerItem
             Task { @MainActor in
-                self?.onTrackEnded()
+                guard let self,
+                      let endedItem,
+                      endedItem === self.player.currentItem else { return }
+                self.onTrackEnded()
             }
         }
 
@@ -131,14 +144,27 @@ public final class AudioPlayerService {
         interruptionObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
         ) { [weak self] notification in
-            self?.handleInterruption(notification)
+            guard let info = notification.userInfo,
+                  let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+            let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt
+            Task { @MainActor [weak self] in
+                self?.handleInterruption(type: type, optionsValue: optionsValue)
+            }
         }
 
         // Route change (headphones disconnect)
         routeChangeObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
         ) { [weak self] notification in
-            self?.handleRouteChange(notification)
+            guard let info = notification.userInfo,
+                  let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
+
+            Task { @MainActor [weak self] in
+                self?.handleRouteChange(reason: reason)
+            }
         }
     }
 
@@ -182,6 +208,7 @@ public final class AudioPlayerService {
     }
 
     public func pause() {
+        cancelCrossfade()
         player.pause()
         state = .paused
     }
@@ -193,7 +220,9 @@ public final class AudioPlayerService {
     public func seekTo(_ time: TimeInterval) {
         let cmTime = CMTime(seconds: time, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            self?.currentTime = time
+            Task { @MainActor [weak self] in
+                self?.currentTime = time
+            }
         }
     }
 
@@ -312,20 +341,28 @@ public final class AudioPlayerService {
 
     private func playCurrentItem() {
         guard currentIndex >= 0, currentIndex < queue.count else {
+            cancelActivePlaybackTasks()
             state = .idle
             currentItem = nil
             return
         }
 
+        cancelActivePlaybackTasks()
+        playbackGeneration += 1
+        let generation = playbackGeneration
         let metadata = queue[currentIndex]
         currentItem = metadata
         state = .loading
         duration = 0
         currentTime = 0
-
+        bufferedTime = 0
         player.removeAllItems()
+        crossfadePlayer?.pause()
+        crossfadePlayer = nil
+        player.volume = 1.0
 
-        Task { @MainActor in
+        playbackTask = Task { @MainActor [weak self] in
+            guard let self else { return }
             do {
                 guard let resolve = resolveStreamURL else {
                     state = .error("No stream resolver configured")
@@ -333,6 +370,9 @@ public final class AudioPlayerService {
                 }
 
                 let streamURL = try await resolve(metadata.id)
+                try Task.checkCancellation()
+                guard playbackGeneration == generation, currentItem?.id == metadata.id else { return }
+
                 let asset = AVURLAsset(url: streamURL)
                 let playerItem = AVPlayerItem(asset: asset)
 
@@ -349,19 +389,31 @@ public final class AudioPlayerService {
                 if currentIndex >= queue.count - 2 {
                     if let handler = autoLoadMoreHandler {
                         let more = await handler()
-                        if !more.isEmpty {
+                        if !Task.isCancelled,
+                           playbackGeneration == generation,
+                           currentItem?.id == metadata.id,
+                           !more.isEmpty {
                             addToQueue(more)
                         }
                     }
                 }
+            } catch is CancellationError {
+                return
             } catch {
                 MetrolistLogger.playback.error("Failed to resolve stream: \(error)")
-                state = .error(error.localizedDescription)
+                if playbackGeneration == generation, currentItem?.id == metadata.id {
+                    state = .error(error.localizedDescription)
+                }
+            }
+
+            if self.playbackGeneration == generation {
+                self.playbackTask = nil
             }
         }
     }
 
     private func observePlayerItem(_ item: AVPlayerItem) {
+        let generation = playbackGeneration
         statusObservation?.invalidate()
         durationObservation?.invalidate()
         bufferObservation?.invalidate()
@@ -369,11 +421,12 @@ public final class AudioPlayerService {
         statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
             Task { @MainActor in
                 guard let self else { return }
+                guard self.playbackGeneration == generation, self.player.currentItem === item else { return }
                 switch item.status {
                 case .readyToPlay:
                     self.duration = item.duration.seconds.isNaN ? 0 : item.duration.seconds
                     if self.normalizeLoudness {
-                        self.applyLoudnessNormalization(to: item)
+                        await self.applyLoudnessNormalization(to: item)
                     }
                 case .failed:
                     let message = item.error?.localizedDescription ?? "Unknown playback error"
@@ -387,15 +440,44 @@ public final class AudioPlayerService {
 
         bufferObservation = item.observe(\AVPlayerItem.loadedTimeRanges, options: [.new]) { [weak self] item, _ in
             Task { @MainActor in
+                guard let self else { return }
+                guard self.playbackGeneration == generation, self.player.currentItem === item else { return }
                 guard let range = item.loadedTimeRanges.first?.timeRangeValue else { return }
-                self?.bufferedTime = range.start.seconds + range.duration.seconds
+                self.bufferedTime = range.start.seconds + range.duration.seconds
+            }
+        }
+
+        // Observe timeControlStatus (preferred over raw rate) so state stays in sync
+        // with external pause/resume events — e.g. AirPlay, Siri, phone calls.
+        // Unlike rate, timeControlStatus distinguishes buffering from intentional pause,
+        // preventing spurious .paused state during seeks or stall recovery.
+        rateObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] playerRef, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                guard self.playbackGeneration == generation else { return }
+                switch playerRef.timeControlStatus {
+                case .playing:
+                    if self.state != .playing { self.state = .playing }
+                case .paused:
+                    // Only flip to .paused when a track is actually loaded; ignore the
+                    // idle state where the player is paused with no current item.
+                    if self.state == .playing, playerRef.currentItem != nil {
+                        self.state = .paused
+                    }
+                case .waitingToPlayAtSpecifiedRate:
+                    break // buffering — do not change UI state
+                @unknown default:
+                    break
+                }
             }
         }
     }
 
-    private func applyLoudnessNormalization(to item: AVPlayerItem) {
-        // AVAudioMix-based volume adjustment for loudness normalization
-        guard let track = item.asset.tracks(withMediaType: .audio).first else { return }
+    private func applyLoudnessNormalization(to item: AVPlayerItem) async {
+        // AVAudioMix-based volume adjustment for loudness normalization.
+        // Uses the async load API (iOS 15+) to avoid blocking the calling thread.
+        guard let tracks = try? await item.asset.load(.tracks),
+              let track = tracks.first(where: { $0.mediaType == .audio }) else { return }
 
         let params = AVMutableAudioMixInputParameters(track: track)
         let targetGain = pow(10, loudnessBaseGain / 20.0)
@@ -445,61 +527,108 @@ public final class AudioPlayerService {
     // MARK: - Crossfade
 
     private func beginCrossfade() {
-        guard crossfadePlayer == nil else { return }
+        guard crossfadePlayer == nil, !isPreparingCrossfade else { return }
         let nextIdx = (currentIndex + 1) % queue.count
         guard nextIdx != currentIndex, nextIdx < queue.count else { return }
 
         let nextItem = queue[nextIdx]
-        Task { @MainActor in
+        isPreparingCrossfade = true
+        crossfadeGeneration += 1
+        let generation = crossfadeGeneration
+        crossfadeTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if crossfadeGeneration == generation {
+                    crossfadeTask = nil
+                    isPreparingCrossfade = false
+                }
+            }
             guard let resolve = resolveStreamURL else { return }
             do {
                 let url = try await resolve(nextItem.id)
+                try Task.checkCancellation()
+                guard crossfadeGeneration == generation,
+                      currentItem?.id != nextItem.id,
+                      currentIndex + 1 == nextIdx else { return }
+
                 let cfPlayer = AVPlayer(url: url)
                 cfPlayer.volume = 0
                 cfPlayer.play()
-                self.crossfadePlayer = cfPlayer
+                crossfadePlayer = cfPlayer
 
                 // Fade volumes over crossfadeDuration
                 let steps = 20
                 let stepDuration = crossfadeDuration / Double(steps)
                 for i in 1...steps {
-                    try? await Task.sleep(for: .seconds(stepDuration))
+                    try await Task.sleep(for: .seconds(stepDuration))
+                    try Task.checkCancellation()
                     let progress = Float(i) / Float(steps)
-                    self.player.volume = 1.0 - progress
+                    player.volume = 1.0 - progress
                     cfPlayer.volume = progress
                 }
+                try Task.checkCancellation()
+                guard crossfadeGeneration == generation else { return }
 
-                // Swap: crossfade player becomes the main player
-                self.player.pause()
-                self.currentIndex = nextIdx
-                self.currentItem = nextItem
-                self.crossfadePlayer = nil
+                // Swap: crossfade player becomes the main player.
+                // Capture references while cfPlayer is still alive (crossfadePlayer
+                // property will be nilled out below, but the local `cfPlayer` keeps a
+                // strong reference).
+                let handoffItem = cfPlayer.currentItem
+                let handoffTime = cfPlayer.currentTime()
+                cfPlayer.pause()
+                player.pause()
+                currentIndex = nextIdx
+                currentItem = nextItem
+                crossfadePlayer = nil
 
-                // Re-resolve for the main player
-                let asset = AVURLAsset(url: url)
-                let item = AVPlayerItem(asset: asset)
-                self.player.replaceCurrentItem(with: item)
-                self.player.volume = 1.0
-                self.player.play()
-                self.state = .playing
+                if let handoffItem {
+                    // Transfer the already-loaded AVPlayerItem to avoid re-requesting
+                    // the stream URL.  Explicitly detach from the crossfade player
+                    // first so it can be safely adopted by the main AVQueuePlayer.
+                    cfPlayer.replaceCurrentItem(with: nil)
+                    if skipSilence {
+                        handoffItem.audioTimePitchAlgorithm = .timeDomain
+                    }
+                    observePlayerItem(handoffItem)
+                    player.replaceCurrentItem(with: handoffItem)
+                    player.volume = 1.0
+                    player.play()
+                } else {
+                    // Fallback: create a fresh item and seek to the handoff position.
+                    let asset = AVURLAsset(url: url)
+                    let newItem = AVPlayerItem(asset: asset)
+                    if skipSilence {
+                        newItem.audioTimePitchAlgorithm = .timeDomain
+                    }
+                    observePlayerItem(newItem)
+                    player.replaceCurrentItem(with: newItem)
+                    player.volume = 1.0
+                    await player.seek(to: handoffTime)
+                    player.play()
+                }
+                state = .playing
+            } catch is CancellationError {
+                crossfadePlayer?.pause()
+                crossfadePlayer = nil
+                player.volume = 1.0
             } catch {
                 MetrolistLogger.playback.error("Crossfade failed: \(error)")
+                crossfadePlayer?.pause()
+                crossfadePlayer = nil
+                player.volume = 1.0
             }
         }
     }
 
     // MARK: - Audio Route / Interruption
 
-    private func handleInterruption(_ notification: Notification) {
-        guard let info = notification.userInfo,
-              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
-              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
-
+    @MainActor
+    private func handleInterruption(type: AVAudioSession.InterruptionType, optionsValue: UInt?) {
         switch type {
         case .began:
             pause()
         case .ended:
-            if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt {
+            if let optionsValue = optionsValue {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
                 if options.contains(.shouldResume) {
                     play()
@@ -510,11 +639,8 @@ public final class AudioPlayerService {
         }
     }
 
-    private func handleRouteChange(_ notification: Notification) {
-        guard let info = notification.userInfo,
-              let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
-
+    @MainActor
+    private func handleRouteChange(reason: AVAudioSession.RouteChangeReason) {
         if reason == .oldDeviceUnavailable {
             // Headphones were disconnected
             pause()
@@ -523,20 +649,48 @@ public final class AudioPlayerService {
 
     // MARK: - Teardown
 
+    private func cancelActivePlaybackTasks() {
+        playbackTask?.cancel()
+        playbackTask = nil
+        cancelCrossfade()
+    }
+
+    private func cancelCrossfade() {
+        crossfadeTask?.cancel()
+        crossfadeTask = nil
+        isPreparingCrossfade = false
+        crossfadePlayer?.pause()
+        crossfadePlayer = nil
+        player.volume = 1.0
+    }
+
     private func teardown() {
+        cancelActivePlaybackTasks()
         if let observer = timeObserver {
             player.removeTimeObserver(observer)
+            timeObserver = nil
         }
         statusObservation?.invalidate()
         durationObservation?.invalidate()
         bufferObservation?.invalidate()
+        rateObservation?.invalidate()
+        statusObservation = nil
+        durationObservation = nil
+        bufferObservation = nil
+        rateObservation = nil
 
         if let obs = itemDidEndObserver { NotificationCenter.default.removeObserver(obs) }
         if let obs = interruptionObserver { NotificationCenter.default.removeObserver(obs) }
         if let obs = routeChangeObserver { NotificationCenter.default.removeObserver(obs) }
+        itemDidEndObserver = nil
+        interruptionObserver = nil
+        routeChangeObserver = nil
 
         cancelSleepTimer()
+        crossfadePlayer?.pause()
+        crossfadePlayer = nil
         player.pause()
+        player.removeAllItems()
     }
 }
 
@@ -553,3 +707,5 @@ private extension Array where Element == MediaMetadata {
         return copy
     }
 }
+
+#endif

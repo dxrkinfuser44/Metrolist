@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import MetrolistCore
 
 // MARK: - KuGou Lyrics Service
@@ -20,7 +23,7 @@ public actor KuGouLyrics {
 
     /// Fetch best-matching lyrics for a song.
     public func getLyrics(title: String, artist: String, duration: Int, album: String? = nil) async -> Result<String, Error> {
-        await Result {
+        do {
             // Step 1: Search for song hash
             let hash = try await searchSongHash(title: title, artist: artist, duration: duration)
 
@@ -32,7 +35,9 @@ public actor KuGouLyrics {
                 throw LyricsError.notFound
             }
 
-            return try await downloadLyrics(id: best.id, accessKey: best.accessKey)
+            return .success(try await downloadLyrics(id: best.id, accessKey: best.accessKey))
+        } catch {
+            return .failure(error)
         }
     }
 
@@ -161,7 +166,7 @@ public actor LrcLibLyrics {
     }
 
     public func getLyrics(title: String, artist: String, duration: Int, album: String? = nil) async -> Result<String, Error> {
-        await Result {
+        do {
             // Multi-strategy search: cleaned → original → broad
             let strategies: [(String?, String?, String?, String?)] = [
                 (nil, title.cleanedTitle, artist, album),
@@ -180,15 +185,17 @@ public actor LrcLibLyrics {
                         ?? tracks.first(where: { $0.syncedLyrics != nil })
 
                     if let syncedLyrics = match?.syncedLyrics {
-                        return syncedLyrics
+                        return .success(syncedLyrics)
                     }
                     if let plainLyrics = match?.plainLyrics {
-                        return plainLyrics
+                        return .success(plainLyrics)
                     }
                 }
             }
 
             throw LyricsError.notFound
+        } catch {
+            return .failure(error)
         }
     }
 
@@ -250,7 +257,7 @@ public actor SimpMusicLyrics {
     }
 
     public func getLyrics(videoId: String, duration: Int) async -> Result<String, Error> {
-        await Result {
+        do {
             let url = URL(string: "https://api-lyrics.simpmusic.org/v1/\(videoId)")!
             let (data, _) = try await session.data(from: url)
 
@@ -271,11 +278,13 @@ public actor SimpMusicLyrics {
             }
 
             // Priority: richSync → synced → plain
-            if let rich = first.richSyncLyrics, !rich.isEmpty { return rich }
-            if let synced = first.syncedLyrics, !synced.isEmpty { return synced }
-            if let plain = first.plainLyrics, !plain.isEmpty { return plain }
+            if let rich = first.richSyncLyrics, !rich.isEmpty { return .success(rich) }
+            if let synced = first.syncedLyrics, !synced.isEmpty { return .success(synced) }
+            if let plain = first.plainLyrics, !plain.isEmpty { return .success(plain) }
 
             throw LyricsError.notFound
+        } catch {
+            return .failure(error)
         }
     }
 }

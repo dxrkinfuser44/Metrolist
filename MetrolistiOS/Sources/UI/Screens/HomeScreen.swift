@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 import MetrolistCore
 
@@ -79,3 +80,5 @@ public struct HomeScreen: View {
         }
     }
 }
+
+#endif
